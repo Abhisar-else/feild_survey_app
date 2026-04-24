@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'dasboard.dart';
+
 void main() {
   runApp(const FieldSurveyApp());
 }
@@ -71,13 +73,11 @@ class _LoginScreenState extends State<LoginScreen>
       // Simulate API call
       await Future.delayed(const Duration(seconds: 2));
       setState(() => _isLoading = false);
-      // Navigate to home screen
+      // Navigate to dashboard
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Login Successful!'),
-            backgroundColor: Color(0xFF43A047),
-          ),
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const DashboardScreen()),
         );
       }
     }
@@ -226,6 +226,11 @@ class _LoginScreenState extends State<LoginScreen>
                                 }
                                 if (!value.contains('@')) {
                                   return 'Please enter a valid email';
+                                }
+                                // Check for valid Gmail format
+                                final emailRegex = RegExp(r'^[\w\.-]+@gmail\.com$');
+                                if (!emailRegex.hasMatch(value)) {
+                                  return 'Please enter a valid Gmail address';
                                 }
                                 return null;
                               },
