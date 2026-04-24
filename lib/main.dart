@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'dasboard.dart';
+import 'survey_form.dart';
 
 void main() {
   runApp(const FieldSurveyApp());
@@ -19,7 +20,12 @@ class FieldSurveyApp extends StatelessWidget {
         useMaterial3: true,
         fontFamily: 'Roboto',
       ),
-      home: const LoginScreen(),
+      initialRoute: '/',
+      routes: {
+        '/': (context) => const LoginScreen(),
+        '/dashboard': (context) => const DashboardScreen(),
+        '/survey': (context) => const CreateSurveyScreen(),
+      },
     );
   }
 }
