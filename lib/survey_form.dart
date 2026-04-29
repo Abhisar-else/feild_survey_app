@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'services/survey_service.dart';
 
 class QuestionModel {
   String text;
@@ -17,6 +18,8 @@ class _CreateSurveyScreenState extends State<CreateSurveyScreen> {
   final _titleController = TextEditingController();
   final _descController = TextEditingController();
   final List<QuestionModel> _questions = [QuestionModel()];
+  final SurveyService _surveyService = SurveyService();
+  bool _isSaving = false;
 
   final List<String> _questionTypes = [
     'Text Input',
@@ -37,21 +40,65 @@ class _CreateSurveyScreenState extends State<CreateSurveyScreen> {
     }
   }
 
-  void _savesurvey() {
+  void _savesurvey() async {
     if (_titleController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please enter a survey title')),
       );
       return;
     }
-    // TODO: integrate with API
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Survey saved successfully!'),
-        backgroundColor: Color(0xFF1A73E8),
-      ),
-    );
-    Navigator.pop(context);
+
+    setState(() => _isSaving = true);
+
+    try {
+      // Create survey in local database
+      final survey = await _surveyService.createSurvey(
+        title: _titleController.text.trim(),
+        description: _descController.text.trim(),
+      );
+
+      // Save questions as response data
+      Map<String, dynamic> questionsData = {};
+      for (int i = 0; i < _questions.length; i++) {
+        questionsData['question_$i'] = {
+          'text': _questions[i].text,
+          'type': _questions[i].type,
+        };
+      }
+
+      await _surveyService.saveResponse(
+        surveyId: survey.id,
+        responseData: questionsData,
+      );
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Survey saved successfully offline!'),
+          backgroundColor: Color(0xFF1A73E8),
+          duration: Duration(seconds: 2),
+        ),
+      );
+      
+      Future.delayed(const Duration(seconds: 2), () {
+        if (mounted) {
+          Navigator.pop(context);
+        }
+      });
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error saving survey: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _isSaving = false);
+      }
+    }
   }
 
   @override
@@ -84,9 +131,18 @@ class _CreateSurveyScreenState extends State<CreateSurveyScreen> {
           Padding(
             padding: const EdgeInsets.only(right: 16, top: 10, bottom: 10),
             child: ElevatedButton.icon(
-              onPressed: _savesurvey,
-              icon: const Icon(Icons.save_rounded, size: 18),
-              label: const Text('Save'),
+              onPressed: _isSaving ? null : _savesurvey,
+              icon: _isSaving
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                      ),
+                    )
+                  : const Icon(Icons.save_rounded, size: 18),
+              label: Text(_isSaving ? 'Saving...' : 'Save'),
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF1A73E8),
                 foregroundColor: Colors.white,

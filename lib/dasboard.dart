@@ -27,8 +27,58 @@ class FieldSurveyApp extends StatelessWidget {
   }
 }
 
-class DashboardScreen extends StatelessWidget {
+class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
+
+  @override
+  State<DashboardScreen> createState() => _DashboardScreenState();
+}
+
+class _DashboardScreenState extends State<DashboardScreen> {
+  int _currentIndex = 0;
+
+  final List<Widget> _tabs = [
+    const _HomeTab(),
+    const _ScannerTab(),
+    const _SettingsTab(),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: _tabs[_currentIndex],
+      bottomNavigationBar: BottomNavigationBar(
+        currentIndex: _currentIndex,
+        onTap: (index) {
+          setState(() {
+            _currentIndex = index;
+          });
+        },
+        selectedItemColor: const Color(0xFF1A65FF),
+        unselectedItemColor: const Color(0xFF8A94A6),
+        items: const [
+          BottomNavigationBarItem(
+            icon: Icon(Icons.home_outlined),
+            activeIcon: Icon(Icons.home),
+            label: 'Home',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.qr_code_scanner),
+            label: 'Scanner',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.settings_outlined),
+            activeIcon: Icon(Icons.settings),
+            label: 'Settings',
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _HomeTab extends StatelessWidget {
+  const _HomeTab();
 
   @override
   Widget build(BuildContext context) {
@@ -65,7 +115,8 @@ class DashboardScreen extends StatelessWidget {
                               Navigator.push(
                                 context,
                                 MaterialPageRoute(
-                                  builder: (context) => const CreateSurveyScreen(),
+                                  builder: (context) =>
+                                      const CreateSurveyScreen(),
                                 ),
                               );
                             },
@@ -149,7 +200,9 @@ class DashboardScreen extends StatelessWidget {
               padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
               decoration: BoxDecoration(
                 // Replaced deprecated .withOpacity with .withAlpha
-                color: Colors.white.withAlpha((255 * 0.15).round()), // Alpha for 0.15 opacity is 38
+                color: Colors.white.withAlpha(
+                  (255 * 0.15).round(),
+                ), // Alpha for 0.15 opacity is 38
                 borderRadius: BorderRadius.circular(16),
               ),
               child: const Column(
@@ -166,10 +219,7 @@ class DashboardScreen extends StatelessWidget {
                   SizedBox(height: 4),
                   Text(
                     'In Progress',
-                    style: TextStyle(
-                      color: Colors.white70,
-                      fontSize: 14,
-                    ),
+                    style: TextStyle(color: Colors.white70, fontSize: 14),
                   ),
                 ],
               ),
@@ -181,7 +231,9 @@ class DashboardScreen extends StatelessWidget {
               padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
               decoration: BoxDecoration(
                 // Replaced deprecated .withOpacity with .withAlpha
-                color: Colors.white.withAlpha((255 * 0.15).round()), // Alpha for 0.15 opacity is 38
+                color: Colors.white.withAlpha(
+                  (255 * 0.15).round(),
+                ), // Alpha for 0.15 opacity is 38
                 borderRadius: BorderRadius.circular(16),
               ),
               child: const Column(
@@ -198,10 +250,7 @@ class DashboardScreen extends StatelessWidget {
                   SizedBox(height: 4),
                   Text(
                     'This Week',
-                    style: TextStyle(
-                      color: Colors.white70,
-                      fontSize: 14,
-                    ),
+                    style: TextStyle(color: Colors.white70, fontSize: 14),
                   ),
                 ],
               ),
@@ -320,7 +369,12 @@ class _SettingsTab extends StatelessWidget {
               // Header
               Container(
                 width: double.infinity,
-                padding: const EdgeInsets.only(left: 20, right: 20, top: 40, bottom: 24),
+                padding: const EdgeInsets.only(
+                  left: 20,
+                  right: 20,
+                  top: 40,
+                  bottom: 24,
+                ),
                 decoration: const BoxDecoration(
                   color: Color(0xFF1A65FF),
                   borderRadius: BorderRadius.only(
@@ -342,10 +396,7 @@ class _SettingsTab extends StatelessWidget {
                     SizedBox(height: 4),
                     Text(
                       'Manage your preferences',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Colors.white70,
-                      ),
+                      style: TextStyle(fontSize: 14, color: Colors.white70),
                     ),
                   ],
                 ),
@@ -428,7 +479,9 @@ class _SettingsTab extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: (iconColor ?? const Color(0xFF1A65FF)).withAlpha((255 * 0.1).round()),
+                  color: (iconColor ?? const Color(0xFF1A65FF)).withAlpha(
+                    (255 * 0.1).round(),
+                  ),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Icon(
@@ -467,6 +520,61 @@ class _SettingsTab extends StatelessWidget {
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ScannerTab extends StatelessWidget {
+  const _ScannerTab();
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFF8F9FA),
+      appBar: AppBar(
+        title: const Text(
+          'Scanner',
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        ),
+        backgroundColor: const Color(0xFF1A65FF),
+        elevation: 0,
+      ),
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: const Color(0xFF1A65FF).withAlpha(25),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.qr_code_scanner,
+                size: 80,
+                color: Color(0xFF1A65FF),
+              ),
+            ),
+            const SizedBox(height: 24),
+            const Text(
+              'Scanner Placeholder',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w500,
+                color: Color(0xFF1A1A1A),
+              ),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Integration coming soon',
+              style: TextStyle(
+                fontSize: 16,
+                color: Color(0xFF808080),
+              ),
+            ),
+          ],
         ),
       ),
     );
