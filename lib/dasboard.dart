@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'survey_form.dart';
+import 'analytic.dart';
 
 void main() {
   runApp(const FieldSurveyApp());
@@ -76,6 +77,14 @@ class DashboardScreen extends StatelessWidget {
                             title: 'Analytics',
                             icon: Icons.bar_chart,
                             color: const Color(0xFF9B00FF),
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => const AnalyticsScreen(),
+                                ),
+                              );
+                            },
                           ),
                         ),
                       ],
