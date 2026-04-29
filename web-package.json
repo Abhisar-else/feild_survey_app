@@ -1,0 +1,27 @@
+{
+  "name": "field-survey-app-web",
+  "version": "1.0.0",
+  "description": "Field Survey App - Web version with QR code deployment",
+  "scripts": {
+    "build": "flutter build web --release",
+    "serve": "flutter run -d web",
+    "firebase:login": "firebase login",
+    "firebase:init": "firebase init hosting",
+    "firebase:deploy": "firebase deploy",
+    "deploy": "flutter build web --release && firebase deploy",
+    "generate:qr": "qrcode"
+  },
+  "devDependencies": {
+    "firebase-tools": "^12.0.0",
+    "qrcode": "^1.5.3"
+  },
+  "keywords": [
+    "flutter",
+    "survey",
+    "web",
+    "qr-code",
+    "offline"
+  ],
+  "author": "",
+  "license": "MIT"
+}

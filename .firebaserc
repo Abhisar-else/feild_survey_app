@@ -1,0 +1,20 @@
+{
+  "projects": {
+    "default": {
+      "projectId": "your-project-id",
+      "databaseURL": "https://your-project-id.firebaseio.com",
+      "storageBucket": "your-project-id.appspot.com"
+    }
+  },
+  "targets": {
+    "your-project-id": {
+      "hosting": {
+        "feild-survey-app": [
+          "your-project-id"
+        ]
+      }
+    }
+  },
+  "etags": {},
+  "resourceManagerPolicy": []
+}

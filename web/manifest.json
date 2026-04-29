@@ -1,13 +1,28 @@
 {
-    "name": "feild_survey_app",
-    "short_name": "feild_survey_app",
-    "start_url": ".",
+    "name": "Field Survey App",
+    "short_name": "Survey App",
+    "start_url": "/",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "background_color": "#ffffff",
+    "theme_color": "#1A65FF",
+    "description": "Create and manage field surveys offline. Sync data when online.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
+    "categories": ["productivity", "business"],
+    "screenshots": [
+        {
+            "src": "icons/Icon-192.png",
+            "sizes": "192x192",
+            "type": "image/png",
+            "form_factor": "narrow"
+        },
+        {
+            "src": "icons/Icon-512.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "form_factor": "wide"
+        }
+    ],
     "icons": [
         {
             "src": "icons/Icon-192.png",

@@ -18,21 +18,61 @@
 
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
-  <meta name="description" content="A new Flutter project.">
+  <meta name="description" content="Field Survey App - Create and manage surveys offline, sync online.">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#1A65FF">
 
   <!-- iOS meta tags & icons -->
   <meta name="mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black">
-  <meta name="apple-mobile-web-app-title" content="feild_survey_app">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Survey App">
   <link rel="apple-touch-icon" href="icons/Icon-192.png">
 
   <!-- Favicon -->
   <link rel="icon" type="image/png" href="favicon.png"/>
 
-  <title>feild_survey_app</title>
+  <title>Field Survey App</title>
   <link rel="manifest" href="manifest.json">
+  
+  <!-- PWA Support -->
+  <link rel="canonical" href="/">
+  <meta name="description" content="Offline Survey App for Field Data Collection">
+  
+  <!-- Loading indicator style -->
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      background-color: #f8f9fa;
+    }
+    #loading {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      background-color: #f8f9fa;
+    }
+    .spinner {
+      border: 4px solid #e0e0e0;
+      border-top: 4px solid #1A65FF;
+      border-radius: 50%;
+      width: 40px;
+      height: 40px;
+      animation: spin 1s linear infinite;
+    }
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+  </style>
 </head>
 <body>
+  <div id="loading">
+    <div class="spinner"></div>
+  </div>
+  
   <!--
     You can customize the "flutter_bootstrap.js" script.
     This is useful to provide a custom configuration to the Flutter loader
@@ -41,6 +81,11 @@
     For more details:
     * https://docs.flutter.dev/platform-integration/web/initialization
   -->
+  <script>
+    window.addEventListener('flutter-first-frame', function() {
+      document.getElementById('loading').style.display = 'none';
+    });
+  </script>
   <script src="flutter_bootstrap.js" async></script>
 </body>
 </html>
