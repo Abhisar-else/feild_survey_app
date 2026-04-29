@@ -26,8 +26,90 @@ class FieldSurveyApp extends StatelessWidget {
   }
 }
 
-class DashboardScreen extends StatelessWidget {
+class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
+
+  @override
+  State<DashboardScreen> createState() => _DashboardScreenState();
+}
+
+class _DashboardScreenState extends State<DashboardScreen> {
+  int _currentIndex = 0;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: IndexedStack(
+        index: _currentIndex,
+        children: const [
+          _HomeTab(),
+          _SettingsTab(),
+        ],
+      ),
+      bottomNavigationBar: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withAlpha((255 * 0.08).round()),
+              blurRadius: 20,
+              offset: const Offset(0, -4),
+            ),
+          ],
+        ),
+        child: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: [
+                _buildNavItem(icon: Icons.home_rounded, label: 'Home', index: 0),
+                _buildNavItem(icon: Icons.settings_rounded, label: 'Settings', index: 1),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildNavItem({required IconData icon, required String label, required int index}) {
+    final isSelected = _currentIndex == index;
+    return GestureDetector(
+      onTap: () => setState(() => _currentIndex = index),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
+        decoration: BoxDecoration(
+          color: isSelected ? const Color(0xFF1A65FF).withAlpha((255 * 0.1).round()) : Colors.transparent,
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Row(
+          children: [
+            Icon(
+              icon,
+              color: isSelected ? const Color(0xFF1A65FF) : const Color(0xFF8A94A6),
+              size: 24,
+            ),
+            if (isSelected) ...[
+              const SizedBox(width: 8),
+              Text(
+                label,
+                style: const TextStyle(
+                  color: Color(0xFF1A65FF),
+                  fontWeight: FontWeight.w600,
+                  fontSize: 14,
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _HomeTab extends StatelessWidget {
+  const _HomeTab();
 
   @override
   Widget build(BuildContext context) {
@@ -291,6 +373,174 @@ class DashboardScreen extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _SettingsTab extends StatelessWidget {
+  const _SettingsTab();
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFF8F9FA),
+      body: SafeArea(
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Header
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.only(left: 20, right: 20, top: 40, bottom: 24),
+                decoration: const BoxDecoration(
+                  color: Color(0xFF1A65FF),
+                  borderRadius: BorderRadius.only(
+                    bottomLeft: Radius.circular(24),
+                    bottomRight: Radius.circular(24),
+                  ),
+                ),
+                child: const Column(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Text(
+                      'Settings',
+                      style: TextStyle(
+                        fontSize: 28,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+                    SizedBox(height: 4),
+                    Text(
+                      'Manage your preferences',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.white70,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.all(20.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildSettingsItem(
+                      icon: Icons.person_outline,
+                      title: 'Profile',
+                      subtitle: 'Manage your account',
+                      onTap: () {},
+                    ),
+                    _buildSettingsItem(
+                      icon: Icons.notifications_outlined,
+                      title: 'Notifications',
+                      subtitle: 'Configure alerts',
+                      onTap: () {},
+                    ),
+                    _buildSettingsItem(
+                      icon: Icons.lock_outline,
+                      title: 'Privacy & Security',
+                      subtitle: 'Password and security',
+                      onTap: () {},
+                    ),
+                    _buildSettingsItem(
+                      icon: Icons.help_outline,
+                      title: 'Help & Support',
+                      subtitle: 'Get assistance',
+                      onTap: () {},
+                    ),
+                    _buildSettingsItem(
+                      icon: Icons.info_outline,
+                      title: 'About',
+                      subtitle: 'App version 1.0.0',
+                      onTap: () {},
+                    ),
+                    const SizedBox(height: 24),
+                    _buildSettingsItem(
+                      icon: Icons.logout,
+                      title: 'Logout',
+                      subtitle: 'Sign out of your account',
+                      iconColor: Colors.red,
+                      onTap: () {
+                        Navigator.pushReplacementNamed(context, '/');
+                      },
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSettingsItem({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required VoidCallback onTap,
+    Color? iconColor,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: const Color(0xFFEAEAEA)),
+          ),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: (iconColor ?? const Color(0xFF1A65FF)).withAlpha((255 * 0.1).round()),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(
+                  icon,
+                  color: iconColor ?? const Color(0xFF1A65FF),
+                  size: 22,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w500,
+                        color: iconColor ?? const Color(0xFF1A1A1A),
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        color: Color(0xFF808080),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(
+                Icons.chevron_right,
+                color: iconColor ?? const Color(0xFF8A94A6),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
