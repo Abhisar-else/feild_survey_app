@@ -1,4 +1,8 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:mobile_scanner/mobile_scanner.dart';
 
 import 'survey_form.dart';
 import 'analytic.dart';
@@ -775,8 +779,68 @@ class _SettingsTab extends StatelessWidget {
   }
 }
 
-class _ScannerTab extends StatelessWidget {
+class _ScannerTab extends StatefulWidget {
   const _ScannerTab();
+
+  @override
+  State<_ScannerTab> createState() => _ScannerTabState();
+}
+
+class _ScannerTabState extends State<_ScannerTab> {
+  final MobileScannerController _scannerController = MobileScannerController(
+    detectionSpeed: DetectionSpeed.noDuplicates,
+    formats: const [BarcodeFormat.qrCode],
+  );
+
+  String? _lastScannedValue;
+
+  @override
+  void dispose() {
+    unawaited(_scannerController.dispose());
+    super.dispose();
+  }
+
+  void _handleDetect(BarcodeCapture capture) {
+    final value = capture.barcodes
+        .map((barcode) => barcode.rawValue)
+        .whereType<String>()
+        .map((value) => value.trim())
+        .where((value) => value.isNotEmpty)
+        .firstOrNull;
+
+    if (value == null || value == _lastScannedValue) return;
+
+    setState(() {
+      _lastScannedValue = value;
+    });
+  }
+
+  Future<void> _copyLastScan() async {
+    final value = _lastScannedValue;
+    if (value == null || value.isEmpty) return;
+
+    await Clipboard.setData(ClipboardData(text: value));
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('QR code copied')));
+  }
+
+  Future<void> _restartScanner() async {
+    await _scannerController.stop();
+    await _scannerController.start();
+  }
+
+  String _scannerErrorMessage(MobileScannerException error) {
+    return switch (error.errorCode) {
+      MobileScannerErrorCode.permissionDenied =>
+        'Camera permission was blocked. Allow camera access for this site, then reopen the scanner.',
+      MobileScannerErrorCode.unsupported =>
+        'Camera scanning is not supported in this browser or device.',
+      _ => error.errorDetails?.message ?? error.errorCode.message,
+    };
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -789,39 +853,204 @@ class _ScannerTab extends StatelessWidget {
         ),
         backgroundColor: const Color(0xFF1A65FF),
         elevation: 0,
+        actions: [
+          IconButton(
+            tooltip: 'Switch camera',
+            onPressed: () => unawaited(_scannerController.switchCamera()),
+            icon: const Icon(Icons.cameraswitch, color: Colors.white),
+          ),
+          IconButton(
+            tooltip: 'Restart scanner',
+            onPressed: () => unawaited(_restartScanner()),
+            icon: const Icon(Icons.refresh, color: Colors.white),
+          ),
+        ],
       ),
-      body: Center(
+      body: SafeArea(
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Container(
-              padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                color: const Color(0xFF1A65FF).withAlpha(25),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(
-                Icons.qr_code_scanner,
-                size: 80,
-                color: Color(0xFF1A65FF),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.all(20),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(16),
+                  child: DecoratedBox(
+                    decoration: const BoxDecoration(color: Colors.black),
+                    child: Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        MobileScanner(
+                          controller: _scannerController,
+                          fit: BoxFit.cover,
+                          onDetect: _handleDetect,
+                          placeholderBuilder: (context) =>
+                              const _ScannerLoadingView(),
+                          errorBuilder: (context, error) => _ScannerErrorView(
+                            message: _scannerErrorMessage(error),
+                            onRetry: () => unawaited(_restartScanner()),
+                          ),
+                        ),
+                        const _ScannerFrame(),
+                      ],
+                    ),
+                  ),
+                ),
               ),
             ),
-            const SizedBox(height: 24),
-            const Text(
-              'Scanner Placeholder',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.w500,
-                color: Color(0xFF1A1A1A),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+              child: _ScanResultCard(
+                value: _lastScannedValue,
+                onCopy: _copyLastScan,
               ),
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              'Integration coming soon',
-              style: TextStyle(fontSize: 16, color: Color(0xFF808080)),
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _ScannerFrame extends StatelessWidget {
+  const _ScannerFrame();
+
+  @override
+  Widget build(BuildContext context) {
+    return IgnorePointer(
+      child: Center(
+        child: Container(
+          width: 260,
+          height: 260,
+          decoration: BoxDecoration(
+            border: Border.all(color: Colors.white, width: 3),
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(color: Colors.black.withAlpha(90), blurRadius: 28),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ScannerLoadingView extends StatelessWidget {
+  const _ScannerLoadingView();
+
+  @override
+  Widget build(BuildContext context) {
+    return const ColoredBox(
+      color: Colors.black,
+      child: Center(child: CircularProgressIndicator(color: Colors.white)),
+    );
+  }
+}
+
+class _ScannerErrorView extends StatelessWidget {
+  const _ScannerErrorView({required this.message, required this.onRetry});
+
+  final String message;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return ColoredBox(
+      color: Colors.black,
+      child: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.videocam_off, color: Colors.white, size: 44),
+              const SizedBox(height: 16),
+              Text(
+                message,
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: Colors.white, fontSize: 15),
+              ),
+              const SizedBox(height: 18),
+              FilledButton.icon(
+                onPressed: onRetry,
+                icon: const Icon(Icons.refresh),
+                label: const Text('Try Again'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ScanResultCard extends StatelessWidget {
+  const _ScanResultCard({required this.value, required this.onCopy});
+
+  final String? value;
+  final VoidCallback onCopy;
+
+  @override
+  Widget build(BuildContext context) {
+    final hasValue = value != null && value!.isNotEmpty;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFEAEAEA)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 42,
+            height: 42,
+            decoration: BoxDecoration(
+              color: const Color(0xFF1A65FF).withAlpha(25),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(
+              hasValue ? Icons.qr_code_2 : Icons.qr_code_scanner,
+              color: const Color(0xFF1A65FF),
+            ),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  hasValue ? 'Scanned QR Code' : 'Waiting for QR code',
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF1A1A1A),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  hasValue ? value! : 'Point the camera at a QR code.',
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    color: Color(0xFF808080),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          if (hasValue) ...[
+            const SizedBox(width: 8),
+            IconButton(
+              tooltip: 'Copy result',
+              onPressed: onCopy,
+              icon: const Icon(Icons.copy),
+            ),
+          ],
+        ],
       ),
     );
   }

@@ -43,6 +43,7 @@ dependencies:
   http: ^1.2.2
   flutter_secure_storage: ^9.2.2
   connectivity_plus: ^6.1.0
+  mobile_scanner: ^7.2.0
   
   # UUID for generating unique IDs
   uuid: ^4.0.0
