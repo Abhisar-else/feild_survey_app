@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 
+import 'database_factory_initializer.dart';
 import 'dasboard.dart';
 import 'survey_form.dart';
 
 void main() {
+  WidgetsFlutterBinding.ensureInitialized();
+  initializeDatabaseFactory();
   runApp(const FieldSurveyApp());
 }
 

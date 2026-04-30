@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 
 import 'survey_form.dart';
 import 'analytic.dart';
+import 'models/survey_model.dart';
+import 'services/survey_service.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -53,8 +55,34 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 }
 
-class _HomeTab extends StatelessWidget {
+class _HomeTab extends StatefulWidget {
   const _HomeTab();
+
+  @override
+  State<_HomeTab> createState() => _HomeTabState();
+}
+
+class _HomeTabState extends State<_HomeTab> {
+  final SurveyService _surveyService = SurveyService();
+  late Future<List<Survey>> _surveysFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _surveysFuture = _surveyService.getAllSurveys();
+  }
+
+  @override
+  void dispose() {
+    _surveyService.dispose();
+    super.dispose();
+  }
+
+  void _reloadSurveys() {
+    setState(() {
+      _surveysFuture = _surveyService.getAllSurveys();
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -87,14 +115,15 @@ class _HomeTab extends StatelessWidget {
                             title: 'New Survey',
                             icon: Icons.add,
                             color: const Color(0xFF1A65FF),
-                            onTap: () {
-                              Navigator.push(
+                            onTap: () async {
+                              await Navigator.push(
                                 context,
                                 MaterialPageRoute(
                                   builder: (context) =>
                                       const CreateSurveyScreen(),
                                 ),
                               );
+                              if (mounted) _reloadSurveys();
                             },
                           ),
                         ),
@@ -126,28 +155,46 @@ class _HomeTab extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 16),
-                    _buildSurveyItem(
-                      title: 'Customer Satisfaction Survey',
-                      date: 'Mar 6, 2026',
-                      status: 'Completed',
-                      statusColor: const Color(0xFFD1F4E0),
-                      statusTextColor: const Color(0xFF1E8E3E),
-                    ),
-                    const SizedBox(height: 12),
-                    _buildSurveyItem(
-                      title: 'Market Research - Region A',
-                      date: 'Mar 5, 2026',
-                      status: 'In Progress',
-                      statusColor: const Color(0xFFFFEFE0),
-                      statusTextColor: const Color(0xFFE67C00),
-                    ),
-                    const SizedBox(height: 12),
-                    _buildSurveyItem(
-                      title: 'Product Feedback Q1',
-                      date: 'Mar 4, 2026',
-                      status: 'Completed',
-                      statusColor: const Color(0xFFD1F4E0),
-                      statusTextColor: const Color(0xFF1E8E3E),
+                    FutureBuilder<List<Survey>>(
+                      future: _surveysFuture,
+                      builder: (context, snapshot) {
+                        if (snapshot.connectionState ==
+                            ConnectionState.waiting) {
+                          return const Center(
+                            child: Padding(
+                              padding: EdgeInsets.all(24),
+                              child: CircularProgressIndicator(),
+                            ),
+                          );
+                        }
+
+                        if (snapshot.hasError) {
+                          return _buildEmptyState(
+                            icon: Icons.error_outline,
+                            title: 'Could not load saved surveys',
+                            message: snapshot.error.toString(),
+                          );
+                        }
+
+                        final surveys = snapshot.data ?? const <Survey>[];
+                        if (surveys.isEmpty) {
+                          return _buildEmptyState(
+                            icon: Icons.assignment_outlined,
+                            title: 'No saved surveys yet',
+                            message:
+                                'Create a survey and it will appear here automatically.',
+                          );
+                        }
+
+                        return Column(
+                          children: [
+                            for (final survey in surveys) ...[
+                              _buildSurveyItem(survey),
+                              const SizedBox(height: 12),
+                            ],
+                          ],
+                        );
+                      },
                     ),
                   ],
                 ),
@@ -269,59 +316,285 @@ class _HomeTab extends StatelessWidget {
     );
   }
 
-  Widget _buildSurveyItem({
+  Widget _buildSurveyItem(Survey survey) {
+    final statusStyle = _statusStyle(survey.syncStatus);
+
+    return InkWell(
+      borderRadius: BorderRadius.circular(16),
+      onTap: () => _showSurveyDetails(survey),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: const Color(0xFFEAEAEA)),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    survey.title,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w400,
+                      color: Color(0xFF1A1A1A),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    '${_formatDate(survey.createdAt)} • ${survey.questionCount} questions',
+                    style: const TextStyle(
+                      fontSize: 14,
+                      color: Color(0xFF808080),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 12),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: statusStyle.background,
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Text(
+                statusStyle.label,
+                style: TextStyle(
+                  color: statusStyle.foreground,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEmptyState({
+    required IconData icon,
     required String title,
-    required String date,
-    required String status,
-    required Color statusColor,
-    required Color statusTextColor,
+    required String message,
   }) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      width: double.infinity,
+      padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: const Color(0xFFEAEAEA)),
       ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Column(
         children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+          Icon(icon, size: 40, color: const Color(0xFF1A65FF)),
+          const SizedBox(height: 12),
+          Text(
+            title,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              color: Color(0xFF1A1A1A),
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            message,
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontSize: 14, color: Color(0xFF808080)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showSurveyDetails(Survey survey) {
+    showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      isScrollControlled: true,
+      builder: (context) {
+        return DraggableScrollableSheet(
+          expand: false,
+          initialChildSize: 0.65,
+          minChildSize: 0.35,
+          maxChildSize: 0.9,
+          builder: (context, scrollController) {
+            return ListView(
+              controller: scrollController,
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
               children: [
                 Text(
-                  title,
+                  survey.title,
                   style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w400,
+                    fontSize: 22,
+                    fontWeight: FontWeight.w700,
                     color: Color(0xFF1A1A1A),
                   ),
                 ),
-                const SizedBox(height: 8),
+                if (survey.description.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    survey.description,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      color: Color(0xFF5F6368),
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 16),
                 Text(
-                  date,
+                  'Saved on ${_formatDate(survey.createdAt)}',
                   style: const TextStyle(
                     fontSize: 14,
                     color: Color(0xFF808080),
                   ),
                 ),
+                const SizedBox(height: 24),
+                const Text(
+                  'Questions',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF1A1A1A),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                if (survey.questions.isEmpty)
+                  const Text(
+                    'No questions saved for this survey.',
+                    style: TextStyle(fontSize: 14, color: Color(0xFF808080)),
+                  )
+                else
+                  for (final entry in survey.questions.asMap().entries) ...[
+                    _QuestionPreview(
+                      number: entry.key + 1,
+                      question: entry.value,
+                    ),
+                    const SizedBox(height: 10),
+                  ],
               ],
-            ),
-          ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  _SurveyStatusStyle _statusStyle(SyncStatus status) {
+    return switch (status) {
+      SyncStatus.synced => const _SurveyStatusStyle(
+        label: 'Synced',
+        background: Color(0xFFD1F4E0),
+        foreground: Color(0xFF1E8E3E),
+      ),
+      SyncStatus.failed => const _SurveyStatusStyle(
+        label: 'Failed',
+        background: Color(0xFFFFE4E0),
+        foreground: Color(0xFFD93025),
+      ),
+      SyncStatus.pending => const _SurveyStatusStyle(
+        label: 'Saved',
+        background: Color(0xFFFFEFE0),
+        foreground: Color(0xFFE67C00),
+      ),
+    };
+  }
+
+  String _formatDate(DateTime date) {
+    const months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
+    return '${months[date.month - 1]} ${date.day}, ${date.year}';
+  }
+}
+
+class _SurveyStatusStyle {
+  const _SurveyStatusStyle({
+    required this.label,
+    required this.background,
+    required this.foreground,
+  });
+
+  final String label;
+  final Color background;
+  final Color foreground;
+}
+
+class _QuestionPreview extends StatelessWidget {
+  const _QuestionPreview({required this.number, required this.question});
+
+  final int number;
+  final Question question;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8F9FA),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFEAEAEA)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: statusColor,
-              borderRadius: BorderRadius.circular(20),
+            width: 28,
+            height: 28,
+            alignment: Alignment.center,
+            decoration: const BoxDecoration(
+              color: Color(0xFF1A65FF),
+              shape: BoxShape.circle,
             ),
             child: Text(
-              status,
-              style: TextStyle(
-                color: statusTextColor,
-                fontSize: 12,
-                fontWeight: FontWeight.w500,
+              '$number',
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
               ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  question.text,
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w500,
+                    color: Color(0xFF1A1A1A),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  question.type,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    color: Color(0xFF808080),
+                  ),
+                ),
+              ],
             ),
           ),
         ],
