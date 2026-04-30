@@ -3,30 +3,6 @@ import 'package:flutter/material.dart';
 import 'survey_form.dart';
 import 'analytic.dart';
 
-void main() {
-  runApp(const FieldSurveyApp());
-}
-
-class FieldSurveyApp extends StatelessWidget {
-  const FieldSurveyApp({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Field Survey App',
-      theme: ThemeData(
-        primarySwatch: Colors.blue,
-        scaffoldBackgroundColor: const Color(0xFFF8F9FA),
-        // Removed explicit fontFamily: 'Roboto' to allow Flutter to use its default font
-        // which typically handles system fonts or bundles Roboto implicitly for Material Design.
-        // This can resolve issues if 'Roboto' isn't available or configured correctly.
-      ),
-      home: const DashboardScreen(),
-      debugShowCheckedModeBanner: false,
-    );
-  }
-}
-
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
 
@@ -569,10 +545,7 @@ class _ScannerTab extends StatelessWidget {
             const SizedBox(height: 8),
             const Text(
               'Integration coming soon',
-              style: TextStyle(
-                fontSize: 16,
-                color: Color(0xFF808080),
-              ),
+              style: TextStyle(fontSize: 16, color: Color(0xFF808080)),
             ),
           ],
         ),

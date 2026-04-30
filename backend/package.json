@@ -6,7 +6,8 @@
   "scripts": {
     "start": "node server.js",
     "dev": "node --watch server.js",
-    "migrate": "node migrations/run.js"
+    "migrate": "node migrations/run.js",
+    "test": "jest --runInBand --passWithNoTests"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
@@ -17,6 +18,14 @@
     "jsonwebtoken": "^9.0.2",
     "morgan": "^1.10.0",
     "mysql2": "^3.12.0"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0",
+    "supertest": "^7.0.0"
+  },
+  "jest": {
+    "testEnvironment": "node",
+    "clearMocks": true
   },
   "keywords": ["survey", "field", "mysql", "rest-api"],
   "license": "ISC"

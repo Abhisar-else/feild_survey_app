@@ -2,6 +2,18 @@ import 'package:uuid/uuid.dart';
 import '../database_helper.dart';
 import '../models/survey_model.dart';
 
+class SurveyQuestionDraft {
+  const SurveyQuestionDraft({
+    required this.text,
+    required this.type,
+    this.options = const <String>[],
+  });
+
+  final String text;
+  final String type;
+  final List<String> options;
+}
+
 class SurveyService {
   final DatabaseHelper _databaseHelper = DatabaseHelper();
   static const uuid = Uuid();
@@ -10,35 +22,51 @@ class SurveyService {
   Future<Survey> createSurvey({
     required String title,
     String? description,
+    List<SurveyQuestionDraft> questions = const <SurveyQuestionDraft>[],
   }) async {
+    final surveyId = uuid.v4();
+    final now = DateTime.now();
+    final surveyQuestions = questions.asMap().entries.map((entry) {
+      final draft = entry.value;
+      return Question(
+        id: uuid.v4(),
+        surveyId: surveyId,
+        text: draft.text,
+        type: draft.type,
+        order: entry.key,
+        options: draft.options,
+      );
+    }).toList();
+
     final survey = Survey(
-      id: uuid.v4(),
+      id: surveyId,
       title: title,
-      description: description,
-      createdAt: DateTime.now(),
-      updatedAt: DateTime.now(),
+      description: description ?? '',
+      createdAt: now,
+      updatedAt: now,
+      questionCount: surveyQuestions.length,
+      syncStatus: SyncStatus.pending,
+      questions: surveyQuestions,
     );
 
-    await _databaseHelper.insertSurvey(survey.toJson());
+    await _databaseHelper.upsertSurvey(survey);
     return survey;
   }
 
   Future<List<Survey>> getAllSurveys() async {
-    final maps = await _databaseHelper.getAllSurveys();
-    return List.generate(
-      maps.length,
-      (i) => Survey.fromJson(maps[i]),
-    );
+    return _databaseHelper.getAllSurveys();
   }
 
   Future<Survey?> getSurvey(String id) async {
-    final map = await _databaseHelper.getSurvey(id);
-    return map != null ? Survey.fromJson(map) : null;
+    return _databaseHelper.getSurvey(id);
   }
 
   Future<void> updateSurvey(Survey survey) async {
-    final updated = survey.copyWith(updatedAt: DateTime.now());
-    await _databaseHelper.updateSurvey(updated.toJson());
+    final updated = survey.copyWith(
+      updatedAt: DateTime.now(),
+      syncStatus: SyncStatus.pending,
+    );
+    await _databaseHelper.upsertSurvey(updated);
   }
 
   Future<void> deleteSurvey(String id) async {
@@ -50,35 +78,31 @@ class SurveyService {
     required String surveyId,
     required Map<String, dynamic> responseData,
   }) async {
+    final survey = await _databaseHelper.getSurvey(surveyId);
+    final clientResponseId = uuid.v4();
     final response = SurveyResponse(
-      id: uuid.v4(),
+      id: clientResponseId,
+      clientResponseId: clientResponseId,
       surveyId: surveyId,
-      data: responseData,
+      surveyRemoteId: survey?.remoteId ?? 0,
+      answers: responseData,
       createdAt: DateTime.now(),
     );
 
-    await _databaseHelper.insertResponse(response.toJson());
+    await _databaseHelper.insertResponse(response);
     return response;
   }
 
   Future<List<SurveyResponse>> getResponsesBySurvey(String surveyId) async {
-    final maps = await _databaseHelper.getResponsesBySurvey(surveyId);
-    return List.generate(
-      maps.length,
-      (i) => SurveyResponse.fromJson(maps[i]),
-    );
+    return _databaseHelper.getResponsesBySurvey(surveyId);
   }
 
   Future<List<SurveyResponse>> getAllResponses() async {
-    final maps = await _databaseHelper.getAllResponses();
-    return List.generate(
-      maps.length,
-      (i) => SurveyResponse.fromJson(maps[i]),
-    );
+    return _databaseHelper.getAllResponses();
   }
 
   Future<void> updateResponse(SurveyResponse response) async {
-    await _databaseHelper.updateResponse(response.toJson());
+    await _databaseHelper.updateResponse(response);
   }
 
   Future<void> deleteResponse(String id) async {
@@ -87,19 +111,11 @@ class SurveyService {
 
   // Sync operations
   Future<List<Survey>> getUnsyncedSurveys() async {
-    final maps = await _databaseHelper.getUnsyncedSurveys();
-    return List.generate(
-      maps.length,
-      (i) => Survey.fromJson(maps[i]),
-    );
+    return _databaseHelper.getUnsyncedSurveys();
   }
 
   Future<List<SurveyResponse>> getUnsyncedResponses() async {
-    final maps = await _databaseHelper.getUnsyncedResponses();
-    return List.generate(
-      maps.length,
-      (i) => SurveyResponse.fromJson(maps[i]),
-    );
+    return _databaseHelper.getUnsyncedResponses();
   }
 
   Future<void> markSurveySynced(String id) async {
@@ -107,7 +123,7 @@ class SurveyService {
   }
 
   Future<void> markResponseSynced(String id) async {
-    await _databaseHelper.markResponseSynced(id);
+    await _databaseHelper.markResponseSynced(clientResponseId: id);
   }
 
   // Sync all data (call this when connection is restored)

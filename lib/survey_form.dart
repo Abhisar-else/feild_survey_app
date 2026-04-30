@@ -51,24 +51,21 @@ class _CreateSurveyScreenState extends State<CreateSurveyScreen> {
     setState(() => _isSaving = true);
 
     try {
-      // Create survey in local database
-      final survey = await _surveyService.createSurvey(
+      final questionDrafts = _questions
+          .where((question) => question.text.trim().isNotEmpty)
+          .map(
+            (question) => SurveyQuestionDraft(
+              text: question.text.trim(),
+              type: question.type,
+            ),
+          )
+          .toList();
+
+      // Create survey and questions in the local database.
+      await _surveyService.createSurvey(
         title: _titleController.text.trim(),
         description: _descController.text.trim(),
-      );
-
-      // Save questions as response data
-      Map<String, dynamic> questionsData = {};
-      for (int i = 0; i < _questions.length; i++) {
-        questionsData['question_$i'] = {
-          'text': _questions[i].text,
-          'type': _questions[i].type,
-        };
-      }
-
-      await _surveyService.saveResponse(
-        surveyId: survey.id,
-        responseData: questionsData,
+        questions: questionDrafts,
       );
 
       if (!mounted) return;
@@ -80,7 +77,7 @@ class _CreateSurveyScreenState extends State<CreateSurveyScreen> {
           duration: Duration(seconds: 2),
         ),
       );
-      
+
       Future.delayed(const Duration(seconds: 2), () {
         if (mounted) {
           Navigator.pop(context);
@@ -249,7 +246,11 @@ class _CreateSurveyScreenState extends State<CreateSurveyScreen> {
                         color: Color(0xFF1A73E8),
                         shape: BoxShape.circle,
                       ),
-                      child: const Icon(Icons.add, color: Colors.white, size: 18),
+                      child: const Icon(
+                        Icons.add,
+                        color: Colors.white,
+                        size: 18,
+                      ),
                     ),
                     const SizedBox(width: 10),
                     const Text(
@@ -339,8 +340,10 @@ class _StyledTextField extends StatelessWidget {
         hintStyle: TextStyle(color: Colors.grey[400], fontSize: 14),
         filled: true,
         fillColor: const Color(0xFFF5F5F5),
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 12,
+        ),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide.none,
@@ -416,8 +419,11 @@ class _QuestionCard extends StatelessWidget {
                       color: Colors.red.withValues(alpha: 0.08),
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    child: const Icon(Icons.delete_outline,
-                        color: Colors.red, size: 18),
+                    child: const Icon(
+                      Icons.delete_outline,
+                      color: Colors.red,
+                      size: 18,
+                    ),
                   ),
                 ),
             ],
@@ -443,8 +449,10 @@ class _QuestionCard extends StatelessWidget {
               hintStyle: TextStyle(color: Colors.grey[400], fontSize: 14),
               filled: true,
               fillColor: const Color(0xFFF5F5F5),
-              contentPadding:
-                  const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 12,
+              ),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
                 borderSide: BorderSide.none,
@@ -455,8 +463,10 @@ class _QuestionCard extends StatelessWidget {
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide:
-                    const BorderSide(color: Color(0xFF1A73E8), width: 1.5),
+                borderSide: const BorderSide(
+                  color: Color(0xFF1A73E8),
+                  width: 1.5,
+                ),
               ),
             ),
           ),
@@ -484,8 +494,10 @@ class _QuestionCard extends StatelessWidget {
               child: DropdownButton<String>(
                 value: question.type,
                 isExpanded: true,
-                icon: const Icon(Icons.keyboard_arrow_down_rounded,
-                    color: Color(0xFF1A73E8)),
+                icon: const Icon(
+                  Icons.keyboard_arrow_down_rounded,
+                  color: Color(0xFF1A73E8),
+                ),
                 style: const TextStyle(
                   fontSize: 14,
                   color: Color(0xFF1C1B1F),

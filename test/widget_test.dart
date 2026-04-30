@@ -1,12 +1,12 @@
-
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter/material.dart';
 
 import 'package:feild_survey_app/dasboard.dart';
 
 void main() {
   testWidgets('Dashboard displays correctly', (WidgetTester tester) async {
     // Build our app and trigger a frame.
-    await tester.pumpWidget(const FieldSurveyApp());
+    await tester.pumpWidget(const MaterialApp(home: DashboardScreen()));
 
     // Verify that the dashboard shows expected elements.
     expect(find.text('Quick Actions'), findsOneWidget);
