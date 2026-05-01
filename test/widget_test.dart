@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter/material.dart';
 
-import 'package:feild_survey_app/dasboard.dart';
+import 'package:feild_survey_app/dashboard.dart';
 
 void main() {
   testWidgets('Dashboard displays correctly', (WidgetTester tester) async {
