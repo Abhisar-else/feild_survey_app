@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 
 import 'package:http/http.dart' as http;
 
@@ -16,14 +17,28 @@ class ApiException implements Exception {
 class ApiClient {
   ApiClient({
     http.Client? client,
-    this.baseUrl = const String.fromEnvironment(
-      'API_BASE_URL',
-      defaultValue: 'http://10.0.2.2:3000',
-    ),
-  }) : _client = client ?? http.Client();
+    String? baseUrl,
+  }) : _client = client ?? http.Client(),
+       baseUrl = baseUrl ?? _getDefaultBaseUrl();
 
   final http.Client _client;
   final String baseUrl;
+
+  static String _getDefaultBaseUrl() {
+    const fromEnv = String.fromEnvironment('API_BASE_URL');
+    if (fromEnv.isNotEmpty) return fromEnv;
+
+    if (kIsWeb) {
+      return 'http://127.0.0.1:3000';
+    }
+    
+    // For mobile emulators
+    if (defaultTargetPlatform == TargetPlatform.android) {
+      return 'http://10.0.2.2:3000';
+    }
+
+    return 'http://127.0.0.1:3000';
+  }
 
   Future<Map<String, dynamic>> get(String path, {String? token}) {
     return _send('GET', path, token: token);
@@ -58,6 +73,11 @@ class ApiClient {
     final normalizedBase = baseUrl.endsWith('/') ? baseUrl.substring(0, baseUrl.length - 1) : baseUrl;
     final normalizedPath = path.startsWith('/') ? path : '/$path';
     final uri = Uri.parse('$normalizedBase$normalizedPath');
+    
+    if (kDebugMode) {
+      print('🚀 API Request: $method ${uri.toString()}');
+    }
+
     final headers = <String, String>{
       'Accept': 'application/json',
       'Content-Type': 'application/json',
@@ -73,7 +93,7 @@ class ApiClient {
         'DELETE' => _client.delete(uri, headers: headers),
         _ => throw ApiException('Unsupported request method: $method'),
       };
-      final response = await request.timeout(const Duration(seconds: 20));
+      final response = await request.timeout(const Duration(seconds: 30));
 
       final decoded = response.body.isEmpty ? <String, dynamic>{} : jsonDecode(response.body);
       final payload = decoded is Map<String, dynamic> ? decoded : <String, dynamic>{'data': decoded};

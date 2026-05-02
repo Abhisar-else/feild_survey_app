@@ -64,6 +64,8 @@ class AuthService implements AuthServiceBase {
   })  : _apiClient = apiClient,
         _sessionStore = sessionStore ?? SecureSessionStore();
 
+  static final AuthService instance = AuthService(apiClient: ApiClient());
+
   final ApiClient _apiClient;
   final SessionStore _sessionStore;
 

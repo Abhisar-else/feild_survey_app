@@ -8,6 +8,12 @@ import 'survey_form.dart';
 import 'analytic.dart';
 import 'models/survey_model.dart';
 import 'services/survey_service.dart';
+import 'services/auth_service.dart';
+import 'services/location_service.dart';
+import 'package:geolocator/geolocator.dart';
+
+import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -18,10 +24,52 @@ class DashboardScreen extends StatefulWidget {
 
 class _DashboardScreenState extends State<DashboardScreen> {
   int _currentIndex = 0;
+  StreamSubscription<List<ConnectivityResult>>? _connectivitySubscription;
+  final SurveyService _surveyService = SurveyService();
+
+  @override
+  void initState() {
+    super.initState();
+    _checkAuth();
+    _setupConnectivityListener();
+  }
+
+  @override
+  void dispose() {
+    _connectivitySubscription?.cancel();
+    super.dispose();
+  }
+
+  void _setupConnectivityListener() {
+    _connectivitySubscription = Connectivity().onConnectivityChanged.listen((results) {
+      if (results.any((result) => result != ConnectivityResult.none)) {
+        _syncData();
+      }
+    });
+  }
+
+  Future<void> _syncData() async {
+    final session = await AuthService.instance.currentSession();
+    if (session != null) {
+      await _surveyService.syncAllData(session.token);
+      // If we are on the home tab, we might want to refresh the list
+      if (mounted) {
+        setState(() {}); // This might not be enough if it's in a different State object
+      }
+    }
+  }
+
+  Future<void> _checkAuth() async {
+    final session = await AuthService.instance.currentSession();
+    if (session == null && mounted) {
+      Navigator.pushReplacementNamed(context, '/');
+    }
+  }
 
   final List<Widget> _tabs = [
     const _HomeTab(),
     const _ScannerTab(),
+    const _MapTab(),
     const _SettingsTab(),
   ];
 
@@ -38,6 +86,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         },
         selectedItemColor: const Color(0xFF1A65FF),
         unselectedItemColor: const Color(0xFF8A94A6),
+        type: BottomNavigationBarType.fixed,
         items: const [
           BottomNavigationBarItem(
             icon: Icon(Icons.home_outlined),
@@ -47,6 +96,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
           BottomNavigationBarItem(
             icon: Icon(Icons.qr_code_scanner),
             label: 'Scanner',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.map_outlined),
+            activeIcon: Icon(Icons.map),
+            label: 'Map',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.settings_outlined),
@@ -68,12 +122,67 @@ class _HomeTab extends StatefulWidget {
 
 class _HomeTabState extends State<_HomeTab> {
   final SurveyService _surveyService = SurveyService();
+  final LocationService _locationService = LocationService();
   late Future<List<Survey>> _surveysFuture;
+  Position? _currentPosition;
 
   @override
   void initState() {
     super.initState();
     _surveysFuture = _surveyService.getAllSurveys();
+    _updateLocation();
+  }
+
+  Future<void> _updateLocation() async {
+    final pos = await _locationService.getCurrentLocation();
+    if (mounted) {
+      setState(() {
+        _currentPosition = pos;
+      });
+    }
+  }
+
+  Widget _buildLocationStatus() {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFEAEAEA)),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            _currentPosition != null ? Icons.location_on : Icons.location_off,
+            color: _currentPosition != null ? Colors.green : Colors.red,
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  _currentPosition != null 
+                      ? 'Location Captured' 
+                      : 'Capturing Location...',
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+                if (_currentPosition != null)
+                  Text(
+                    'Lat: \${_currentPosition!.latitude.toStringAsFixed(4)}, Lng: \${_currentPosition!.longitude.toStringAsFixed(4)}',
+                    style: const TextStyle(fontSize: 12, color: Colors.grey),
+                  ),
+              ],
+            ),
+          ),
+          TextButton(
+            onPressed: _updateLocation,
+            child: const Text('Refresh'),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -98,6 +207,7 @@ class _HomeTabState extends State<_HomeTab> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               _buildHeader(),
+              _buildLocationStatus(),
               Padding(
                 padding: const EdgeInsets.all(20.0),
                 child: Column(
@@ -220,68 +330,90 @@ class _HomeTabState extends State<_HomeTab> {
           bottomRight: Radius.circular(24),
         ),
       ),
-      child: Row(
+      child: Column(
         children: [
-          Expanded(
-            child: Container(
-              padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
-              decoration: BoxDecoration(
-                // Replaced deprecated .withOpacity with .withAlpha
-                color: Colors.white.withAlpha(
-                  (255 * 0.15).round(),
-                ), // Alpha for 0.15 opacity is 38
-                borderRadius: BorderRadius.circular(16),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                'My Surveys',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
-              child: const Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    '12',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  SizedBox(height: 4),
-                  Text(
-                    'In Progress',
-                    style: TextStyle(color: Colors.white70, fontSize: 14),
-                  ),
-                ],
+              IconButton(
+                icon: const Icon(Icons.sync, color: Colors.white),
+                onPressed: () async {
+                  final session = await AuthService.instance.currentSession();
+                  if (session != null) {
+                    await _surveyService.syncAllData(session.token);
+                    _reloadSurveys();
+                  }
+                },
               ),
-            ),
+            ],
           ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Container(
-              padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
-              decoration: BoxDecoration(
-                // Replaced deprecated .withOpacity with .withAlpha
-                color: Colors.white.withAlpha(
-                  (255 * 0.15).round(),
-                ), // Alpha for 0.15 opacity is 38
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: const Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    '28',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                    ),
+          const SizedBox(height: 20),
+          Row(
+            children: [
+              Expanded(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withAlpha((255 * 0.15).round()),
+                    borderRadius: BorderRadius.circular(16),
                   ),
-                  SizedBox(height: 4),
-                  Text(
-                    'This Week',
-                    style: TextStyle(color: Colors.white70, fontSize: 14),
+                  child: const Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '12',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      SizedBox(height: 4),
+                      Text(
+                        'In Progress',
+                        style: TextStyle(color: Colors.white70, fontSize: 14),
+                      ),
+                    ],
                   ),
-                ],
+                ),
               ),
-            ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withAlpha((255 * 0.15).round()),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: const Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '28',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      SizedBox(height: 4),
+                      Text(
+                        'This Week',
+                        style: TextStyle(color: Colors.white70, fontSize: 14),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -695,8 +827,11 @@ class _SettingsTab extends StatelessWidget {
                       title: 'Logout',
                       subtitle: 'Sign out of your account',
                       iconColor: Colors.red,
-                      onTap: () {
-                        Navigator.pushReplacementNamed(context, '/');
+                      onTap: () async {
+                        await AuthService.instance.logout();
+                        if (context.mounted) {
+                          Navigator.pushReplacementNamed(context, '/');
+                        }
                       },
                     ),
                   ],
@@ -1052,6 +1187,79 @@ class _ScanResultCard extends StatelessWidget {
           ],
         ],
       ),
+    );
+  }
+}
+
+class _MapTab extends StatefulWidget {
+  const _MapTab();
+
+  @override
+  State<_MapTab> createState() => _MapTabState();
+}
+
+class _MapTabState extends State<_MapTab> {
+  final SurveyService _surveyService = SurveyService();
+  Set<Marker> _markers = {};
+  bool _isLoading = true;
+  GoogleMapController? _mapController;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadResponseLocations();
+  }
+
+  Future<void> _loadResponseLocations() async {
+    final responses = await _surveyService.getAllResponses();
+    final markers = responses
+        .where((r) => r.latitude != null && r.longitude != null)
+        .map((r) => Marker(
+              markerId: MarkerId(r.id),
+              position: LatLng(r.latitude!, r.longitude!),
+              onTap: () {
+                if (_mapController != null) {
+                  _mapController!.animateCamera(
+                    CameraUpdate.newLatLng(LatLng(r.latitude!, r.longitude!)),
+                  );
+                }
+              },
+              infoWindow: InfoWindow(
+                title: 'Response at \${r.createdAt}',
+                snippet: 'Survey ID: \${r.surveyId}',
+              ),
+            ))
+        .toSet();
+
+    if (mounted) {
+      setState(() {
+        _markers = markers;
+        _isLoading = false;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Survey Locations', style: TextStyle(color: Colors.white)),
+        backgroundColor: const Color(0xFF1A65FF),
+      ),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : _markers.isEmpty
+              ? const Center(child: Text('No location data available yet.'))
+              : GoogleMap(
+                  initialCameraPosition: CameraPosition(
+                    target: _markers.isNotEmpty 
+                        ? _markers.first.position 
+                        : const LatLng(0, 0),
+                    zoom: 10,
+                  ),
+                  markers: _markers,
+                  onMapCreated: (controller) => _mapController = controller,
+                ),
     );
   }
 }

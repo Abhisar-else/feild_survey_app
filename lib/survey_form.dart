@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'services/survey_service.dart';
+import 'services/auth_service.dart';
 
 class QuestionModel {
   String text;
@@ -20,6 +21,19 @@ class _CreateSurveyScreenState extends State<CreateSurveyScreen> {
   final List<QuestionModel> _questions = [QuestionModel()];
   final SurveyService _surveyService = SurveyService();
   bool _isSaving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkAuth();
+  }
+
+  Future<void> _checkAuth() async {
+    final session = await AuthService.instance.currentSession();
+    if (session == null && mounted) {
+      Navigator.pushReplacementNamed(context, '/');
+    }
+  }
 
   final List<String> _questionTypes = [
     'Text Input',
@@ -51,6 +65,7 @@ class _CreateSurveyScreenState extends State<CreateSurveyScreen> {
     setState(() => _isSaving = true);
 
     try {
+      final session = await AuthService.instance.currentSession();
       final questionDrafts = _questions
           .where((question) => question.text.trim().isNotEmpty)
           .map(
@@ -65,6 +80,8 @@ class _CreateSurveyScreenState extends State<CreateSurveyScreen> {
       await _surveyService.createSurvey(
         title: _titleController.text.trim(),
         description: _descController.text.trim(),
+        creatorName: session?.name,
+        token: session?.token,
         questions: questionDrafts,
       );
 

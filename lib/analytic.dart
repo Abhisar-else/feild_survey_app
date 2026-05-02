@@ -1,7 +1,46 @@
 import 'package:flutter/material.dart';
+import 'services/survey_service.dart';
+import 'models/survey_model.dart';
 
-class AnalyticsScreen extends StatelessWidget {
+class AnalyticsScreen extends StatefulWidget {
   const AnalyticsScreen({super.key});
+
+  @override
+  State<AnalyticsScreen> createState() => _AnalyticsScreenState();
+}
+
+class _AnalyticsScreenState extends State<AnalyticsScreen> {
+  final SurveyService _surveyService = SurveyService();
+  bool _isLoading = true;
+  int _totalSurveys = 0;
+  int _totalResponses = 0;
+  List<Survey> _recentSurveys = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadData();
+  }
+
+  Future<void> _loadData() async {
+    try {
+      final surveys = await _surveyService.getAllSurveys();
+      final responses = await _surveyService.getAllResponses();
+      
+      if (mounted) {
+        setState(() {
+          _totalSurveys = surveys.length;
+          _totalResponses = responses.length;
+          _recentSurveys = surveys.take(5).toList();
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -16,44 +55,77 @@ class AnalyticsScreen extends StatelessWidget {
         iconTheme: const IconThemeData(color: Colors.white),
         elevation: 0,
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Overview',
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF1A1A1A),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : SingleChildScrollView(
+              padding: const EdgeInsets.all(20.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Overview',
+                    style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF1A1A1A),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _buildStatCard(
+                          'Total Surveys',
+                          '$_totalSurveys',
+                          Icons.assignment,
+                          const Color(0xFF1A65FF),
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: _buildStatCard(
+                          'Total Responses',
+                          '$_totalResponses',
+                          Icons.check_circle,
+                          const Color(0xFF1E8E3E),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 30),
+                  const Text(
+                    'Recent Surveys',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF1A1A1A),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  if (_recentSurveys.isEmpty)
+                    const Center(child: Text('No survey data available yet.'))
+                  else
+                    ..._recentSurveys.map((survey) => _buildActivityItem(
+                          survey.title,
+                          'Created on ${_formatDate(survey.createdAt)}',
+                          _timeAgo(survey.createdAt),
+                        )),
+                ],
               ),
             ),
-            const SizedBox(height: 20),
-            Row(
-              children: [
-                Expanded(child: _buildStatCard('Total Surveys', '40', Icons.assignment, const Color(0xFF1A65FF))),
-                const SizedBox(width: 16),
-                Expanded(child: _buildStatCard('Completion Rate', '85%', Icons.check_circle, const Color(0xFF1E8E3E))),
-              ],
-            ),
-            const SizedBox(height: 30),
-            const Text(
-              'Recent Activity',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.w600,
-                color: Color(0xFF1A1A1A),
-              ),
-            ),
-            const SizedBox(height: 16),
-            _buildActivityItem('Customer Satisfaction Survey', 'Completed by 15 users', '2 hours ago'),
-            _buildActivityItem('Product Feedback Q1', 'Completed by 8 users', '5 hours ago'),
-            _buildActivityItem('Market Research - Region A', 'New responses received', '1 day ago'),
-          ],
-        ),
-      ),
     );
+  }
+
+  String _formatDate(DateTime date) {
+    return '${date.day}/${date.month}/${date.year}';
+  }
+
+  String _timeAgo(DateTime date) {
+    final diff = DateTime.now().difference(date);
+    if (diff.inDays > 0) return '${diff.inDays}d ago';
+    if (diff.inHours > 0) return '${diff.inHours}h ago';
+    if (diff.inMinutes > 0) return '${diff.inMinutes}m ago';
+    return 'Just now';
   }
 
   Widget _buildStatCard(String title, String value, IconData icon, Color color) {

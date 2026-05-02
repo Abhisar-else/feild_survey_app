@@ -3,15 +3,19 @@ import 'package:flutter/material.dart';
 import 'database_factory_initializer.dart';
 import 'dashboard.dart';
 import 'survey_form.dart';
+import 'services/auth_service.dart';
 
-void main() {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   initializeDatabaseFactory();
-  runApp(const FieldSurveyApp());
+  
+  final session = await AuthService.instance.currentSession(validate: false);
+  runApp(FieldSurveyApp(initialRoute: session != null ? '/dashboard' : '/'));
 }
 
 class FieldSurveyApp extends StatelessWidget {
-  const FieldSurveyApp({super.key});
+  final String initialRoute;
+  const FieldSurveyApp({super.key, required this.initialRoute});
 
   @override
   Widget build(BuildContext context) {
@@ -23,7 +27,7 @@ class FieldSurveyApp extends StatelessWidget {
         useMaterial3: true,
         fontFamily: 'Roboto',
       ),
-      initialRoute: '/',
+      initialRoute: initialRoute,
       routes: {
         '/': (context) => const LoginScreen(),
         '/dashboard': (context) => const DashboardScreen(),
@@ -79,15 +83,27 @@ class _LoginScreenState extends State<LoginScreen>
   void _handleLogin() async {
     if (_formKey.currentState!.validate()) {
       setState(() => _isLoading = true);
-      // Simulate API call
-      await Future.delayed(const Duration(seconds: 2));
-      setState(() => _isLoading = false);
-      // Navigate to dashboard
-      if (mounted) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => const DashboardScreen()),
+      try {
+        await AuthService.instance.login(
+          email: _emailController.text,
+          password: _passwordController.text,
         );
+        if (mounted) {
+          Navigator.pushReplacementNamed(context, '/dashboard');
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(e.toString()),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      } finally {
+        if (mounted) {
+          setState(() => _isLoading = false);
+        }
       }
     }
   }
@@ -237,7 +253,7 @@ class _LoginScreenState extends State<LoginScreen>
                                   return 'Please enter a valid email';
                                 }
                                 // Check for valid Gmail format
-                                final emailRegex = RegExp(r'^[\w\.-]+@gmail\.com$');
+                                final emailRegex = RegExp(r'^[\w.-]+@gmail\.com$');
                                 if (!emailRegex.hasMatch(value)) {
                                   return 'Please enter a valid Gmail address';
                                 }

@@ -95,6 +95,8 @@ class SurveyRepository {
   Future<SurveyResponse> saveResponseOffline({
     required Survey survey,
     required Map<String, dynamic> answers,
+    double? latitude,
+    double? longitude,
   }) async {
     final remoteId = survey.remoteId;
     if (remoteId == null) {
@@ -109,6 +111,8 @@ class SurveyRepository {
       surveyRemoteId: remoteId,
       answers: answers,
       createdAt: DateTime.now(),
+      latitude: latitude,
+      longitude: longitude,
       syncStatus: SyncStatus.pending,
     );
 

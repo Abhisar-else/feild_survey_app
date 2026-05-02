@@ -10,7 +10,7 @@ class DatabaseHelper {
     this.databasePathOverride,
   });
 
-  static const int databaseVersion = 2;
+  static const int databaseVersion = 3;
 
   static const String surveyTable = 'surveys';
   static const String questionTable = 'questions';
@@ -55,7 +55,7 @@ class DatabaseHelper {
   }
 
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
-    if (oldVersion < 2) {
+    if (oldVersion < 3) {
       await _dropSchema(db);
       await _createSchema(db);
     }
@@ -102,6 +102,8 @@ class DatabaseHelper {
         survey_remote_id INTEGER NOT NULL,
         answers TEXT NOT NULL,
         created_at TEXT NOT NULL,
+        latitude REAL,
+        longitude REAL,
         sync_status TEXT NOT NULL DEFAULT 'pending',
         synced INTEGER NOT NULL DEFAULT 0,
         last_sync_error TEXT,

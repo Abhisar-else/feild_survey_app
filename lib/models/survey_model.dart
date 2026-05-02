@@ -234,6 +234,8 @@ class SurveyResponse {
     required this.surveyRemoteId,
     required this.answers,
     required this.createdAt,
+    this.latitude,
+    this.longitude,
     this.syncStatus = SyncStatus.pending,
     this.lastSyncError,
   });
@@ -245,6 +247,8 @@ class SurveyResponse {
   final int surveyRemoteId;
   final Map<String, dynamic> answers;
   final DateTime createdAt;
+  final double? latitude;
+  final double? longitude;
   final SyncStatus syncStatus;
   final String? lastSyncError;
 
@@ -257,6 +261,8 @@ class SurveyResponse {
       'survey_remote_id': surveyRemoteId,
       'answers': jsonEncode(answers),
       'created_at': createdAt.toIso8601String(),
+      'latitude': latitude,
+      'longitude': longitude,
       'sync_status': syncStatus.value,
       'synced': syncStatus == SyncStatus.synced ? 1 : 0,
       'last_sync_error': lastSyncError,
@@ -269,6 +275,8 @@ class SurveyResponse {
       'survey_id': surveyRemoteId,
       'answers': answers,
       'created_at': createdAt.toIso8601String(),
+      'latitude': latitude,
+      'longitude': longitude,
     };
   }
 
@@ -281,6 +289,8 @@ class SurveyResponse {
       surveyRemoteId: json['survey_remote_id'] as int,
       answers: _decodeMap(json['answers']),
       createdAt: _date(json['created_at']),
+      latitude: json['latitude'] as double?,
+      longitude: json['longitude'] as double?,
       syncStatus: SyncStatus.fromValue(json['sync_status'] as String?),
       lastSyncError: json['last_sync_error'] as String?,
     );
@@ -290,6 +300,8 @@ class SurveyResponse {
     int? remoteId,
     SyncStatus? syncStatus,
     String? lastSyncError,
+    double? latitude,
+    double? longitude,
   }) {
     return SurveyResponse(
       id: id,
@@ -299,6 +311,8 @@ class SurveyResponse {
       surveyRemoteId: surveyRemoteId,
       answers: answers,
       createdAt: createdAt,
+      latitude: latitude ?? this.latitude,
+      longitude: longitude ?? this.longitude,
       syncStatus: syncStatus ?? this.syncStatus,
       lastSyncError: lastSyncError,
     );
