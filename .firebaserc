@@ -1,7 +1,7 @@
 {
   "projects": {
     "default": {
-      "projectId": "your-project-id",
+      "projectId": "field-survey-app-52edd",
       "databaseURL": "https://your-project-id.firebaseio.com",
       "storageBucket": "your-project-id.appspot.com"
     }
