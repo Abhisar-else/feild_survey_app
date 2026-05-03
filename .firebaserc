@@ -3,14 +3,14 @@
     "default": {
       "projectId": "survey-app-767fc",
       "databaseURL": "https://your-project-id.firebaseio.com",
-      "storageBucket": "your-project-id.appspot.com"
+      "storageBucket": "survey-app-767fc.appspot.com"
     }
   },
   "targets": {
-    "your-project-id": {
+    "survey-app-767fc": {
       "hosting": {
         "feild-survey-app": [
-          "your-project-id"
+          "survey-app-767fc"
         ]
       }
     }
