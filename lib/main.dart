@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'firebase_options.dart';
 
 import 'database_factory_initializer.dart';
 import 'dashboard.dart';
@@ -7,6 +9,16 @@ import 'services/auth_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  
+  // Initialize Firebase
+  try {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+  } catch (e) {
+    debugPrint('Firebase initialization failed: $e');
+  }
+
   initializeDatabaseFactory();
   
   final session = await AuthService.instance.currentSession(validate: false);
@@ -124,7 +136,6 @@ class _LoginScreenState extends State<LoginScreen>
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
                     const SizedBox(height: 60),
-                    // ── Logo & Title ──
                     Container(
                       width: 90,
                       height: 90,
@@ -165,7 +176,6 @@ class _LoginScreenState extends State<LoginScreen>
                       ),
                     ),
                     const SizedBox(height: 48),
-                    // ── Login Card ──
                     Container(
                       padding: const EdgeInsets.all(28),
                       decoration: BoxDecoration(
@@ -184,7 +194,6 @@ class _LoginScreenState extends State<LoginScreen>
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            // Email Field
                             const Text(
                               'Email',
                               style: TextStyle(
@@ -252,16 +261,10 @@ class _LoginScreenState extends State<LoginScreen>
                                 if (!value.contains('@')) {
                                   return 'Please enter a valid email';
                                 }
-                                // Check for valid Gmail format
-                                final emailRegex = RegExp(r'^[\w.-]+@gmail\.com$');
-                                if (!emailRegex.hasMatch(value)) {
-                                  return 'Please enter a valid Gmail address';
-                                }
                                 return null;
                               },
                             ),
                             const SizedBox(height: 20),
-                            // Password Field
                             const Text(
                               'Password',
                               style: TextStyle(
@@ -347,19 +350,10 @@ class _LoginScreenState extends State<LoginScreen>
                               },
                             ),
                             const SizedBox(height: 12),
-                            // Forgot Password
                             Align(
                               alignment: Alignment.centerRight,
                               child: TextButton(
-                                onPressed: () {
-                            
-                                },
-                                style: TextButton.styleFrom(
-                                  padding: EdgeInsets.zero,
-                                  minimumSize: Size.zero,
-                                  tapTargetSize:
-                                      MaterialTapTargetSize.shrinkWrap,
-                                ),
+                                onPressed: () {},
                                 child: const Text(
                                   'Forgot Password?',
                                   style: TextStyle(
@@ -371,7 +365,6 @@ class _LoginScreenState extends State<LoginScreen>
                               ),
                             ),
                             const SizedBox(height: 28),
-                            // Login Button
                             SizedBox(
                               width: double.infinity,
                               height: 54,
@@ -380,12 +373,8 @@ class _LoginScreenState extends State<LoginScreen>
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: const Color(0xFF1565C0),
                                   foregroundColor: Colors.white,
-                                  elevation: 0,
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(14),
-                                  ),
-                                  disabledBackgroundColor: const Color(
-                                    0x991565C0,
                                   ),
                                 ),
                                 child: _isLoading
@@ -412,39 +401,26 @@ class _LoginScreenState extends State<LoginScreen>
                       ),
                     ),
                     const SizedBox(height: 32),
-                    // ── Info text ──
                     Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 12,
-                      ),
+                      padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
                         color: const Color(0xFFE3F2FD),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: const Row(
                         children: [
-                          Icon(
-                            Icons.info_outline,
-                            color: Color(0xFF1565C0),
-                            size: 18,
-                          ),
+                          Icon(Icons.info_outline, color: Color(0xFF1565C0), size: 18),
                           SizedBox(width: 10),
                           Expanded(
                             child: Text(
                               'Contact your admin if you don\'t have an account.',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Color(0xFF1565C0),
-                                fontWeight: FontWeight.w400,
-                              ),
+                              style: TextStyle(fontSize: 12, color: Color(0xFF1565C0)),
                             ),
                           ),
                         ],
                       ),
                     ),
                     const SizedBox(height: 40),
-                    // ── Footer ──
                     const Text(
                       'Field Survey App v1.0.0',
                       style: TextStyle(fontSize: 12, color: Color(0xFFBDC3CF)),

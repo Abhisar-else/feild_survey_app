@@ -10,7 +10,7 @@ class UserSession {
   });
 
   final String token;
-  final int id;
+  final String id;
   final String name;
   final String email;
   final String role;
@@ -37,8 +37,8 @@ class UserSession {
     final user = data['user'] as Map<String, dynamic>? ?? <String, dynamic>{};
     return UserSession(
       token: data['token'] as String? ?? json['token'] as String? ?? '',
-      id: _toInt(user['id']) ?? 0,
-      name: user['name'] as String? ?? '',
+      id: user['id']?.toString() ?? user['uid']?.toString() ?? '0',
+      name: user['name'] as String? ?? user['displayName'] as String? ?? '',
       email: user['email'] as String? ?? '',
       role: user['role'] as String? ?? 'field_worker',
     );
@@ -51,17 +51,10 @@ class UserSession {
   UserSession copyWithUser(Map<String, dynamic> user) {
     return UserSession(
       token: token,
-      id: _toInt(user['id']) ?? id,
-      name: user['name'] as String? ?? name,
+      id: user['id']?.toString() ?? user['uid']?.toString() ?? id,
+      name: user['name'] as String? ?? user['displayName'] as String? ?? name,
       email: user['email'] as String? ?? email,
       role: user['role'] as String? ?? role,
     );
   }
-}
-
-int? _toInt(dynamic value) {
-  if (value is int) return value;
-  if (value is num) return value.toInt();
-  if (value is String) return int.tryParse(value);
-  return null;
 }
