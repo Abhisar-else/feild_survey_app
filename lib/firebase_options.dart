@@ -13,19 +13,19 @@ class DefaultFirebaseOptions {
   }
 
   static const FirebaseOptions web = FirebaseOptions(
-    apiKey: 'PASTE_YOUR_API_KEY_HERE',
-    appId: 'PASTE_YOUR_APP_ID_HERE',
-    messagingSenderId: 'PASTE_YOUR_SENDER_ID_HERE',
+    apiKey: 'AIzaSyAZ4Y-z6C_TOh1KmS3HBbBBxVmNpV1jrtA',
+    appId: '1:595229626690:web:7c14e365000fac0986f8db', // Using Android ID as placeholder for web if not set
+    messagingSenderId: '595229626690',
     projectId: 'survey-app-767fc',
     authDomain: 'survey-app-767fc.firebaseapp.com',
-    storageBucket: 'survey-app-767fc.appspot.com',
+    storageBucket: 'survey-app-767fc.firebasestorage.app',
   );
 
   static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'PASTE_YOUR_API_KEY_HERE',
-    appId: 'PASTE_YOUR_APP_ID_HERE',
-    messagingSenderId: 'PASTE_YOUR_SENDER_ID_HERE',
+    apiKey: 'AIzaSyAZ4Y-z6C_TOh1KmS3HBbBBxVmNpV1jrtA',
+    appId: '1:595229626690:android:7c14e365000fac0986f8db',
+    messagingSenderId: '595229626690',
     projectId: 'survey-app-767fc',
-    storageBucket: 'survey-app-767fc.appspot.com',
+    storageBucket: 'survey-app-767fc.firebasestorage.app',
   );
 }

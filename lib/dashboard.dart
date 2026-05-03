@@ -170,7 +170,7 @@ class _HomeTabState extends State<_HomeTab> {
                 ),
                 if (_currentPosition != null)
                   Text(
-                    'Lat: \${_currentPosition!.latitude.toStringAsFixed(4)}, Lng: \${_currentPosition!.longitude.toStringAsFixed(4)}',
+                    'Lat: ${_currentPosition!.latitude.toStringAsFixed(4)}, Lng: ${_currentPosition!.longitude.toStringAsFixed(4)}',
                     style: const TextStyle(fontSize: 12, color: Colors.grey),
                   ),
               ],
@@ -1248,18 +1248,18 @@ class _MapTabState extends State<_MapTab> {
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
-          : _markers.isEmpty
-              ? const Center(child: Text('No location data available yet.'))
-              : GoogleMap(
-                  initialCameraPosition: CameraPosition(
-                    target: _markers.isNotEmpty 
-                        ? _markers.first.position 
-                        : const LatLng(0, 0),
-                    zoom: 10,
-                  ),
-                  markers: _markers,
-                  onMapCreated: (controller) => _mapController = controller,
-                ),
+          : GoogleMap(
+              initialCameraPosition: CameraPosition(
+                target: _markers.isNotEmpty 
+                    ? _markers.first.position 
+                    : const LatLng(28.6139, 77.2090), // Default to New Delhi
+                zoom: 10,
+              ),
+              markers: _markers,
+              onMapCreated: (controller) => _mapController = controller,
+              myLocationEnabled: true,
+              myLocationButtonEnabled: true,
+            ),
     );
   }
 }
