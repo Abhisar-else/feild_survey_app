@@ -1200,17 +1200,20 @@ class _MapTab extends StatefulWidget {
 
 class _MapTabState extends State<_MapTab> {
   final SurveyService _surveyService = SurveyService();
+  final LocationService _locationService = LocationService();
   Set<Marker> _markers = {};
   bool _isLoading = true;
   GoogleMapController? _mapController;
+  Position? _currentPosition;
 
   @override
   void initState() {
     super.initState();
-    _loadResponseLocations();
+    _loadInitialData();
   }
 
-  Future<void> _loadResponseLocations() async {
+  Future<void> _loadInitialData() async {
+    // Load survey markers
     final responses = await _surveyService.getAllResponses();
     final markers = responses
         .where((r) => r.latitude != null && r.longitude != null)
@@ -1225,17 +1228,28 @@ class _MapTabState extends State<_MapTab> {
                 }
               },
               infoWindow: InfoWindow(
-                title: 'Response at \${r.createdAt}',
-                snippet: 'Survey ID: \${r.surveyId}',
+                title: 'Response at ${r.createdAt}',
+                snippet: 'Survey ID: ${r.surveyId}',
               ),
             ))
         .toSet();
 
+    // Get current device location
+    final position = await _locationService.getCurrentLocation();
+
     if (mounted) {
       setState(() {
         _markers = markers;
+        _currentPosition = position;
         _isLoading = false;
       });
+
+      // Move camera to user if they have no markers yet
+      if (position != null && markers.isEmpty && _mapController != null) {
+        _mapController!.animateCamera(
+          CameraUpdate.newLatLng(LatLng(position.latitude, position.longitude)),
+        );
+      }
     }
   }
 
@@ -1250,13 +1264,24 @@ class _MapTabState extends State<_MapTab> {
           ? const Center(child: CircularProgressIndicator())
           : GoogleMap(
               initialCameraPosition: CameraPosition(
-                target: _markers.isNotEmpty 
-                    ? _markers.first.position 
-                    : const LatLng(28.6139, 77.2090), // Default to New Delhi
-                zoom: 10,
+                target: _markers.isNotEmpty
+                    ? _markers.first.position
+                    : (_currentPosition != null
+                        ? LatLng(_currentPosition!.latitude, _currentPosition!.longitude)
+                        : const LatLng(28.6139, 77.2090)), // New Delhi as final fallback
+                zoom: 14,
               ),
               markers: _markers,
-              onMapCreated: (controller) => _mapController = controller,
+              onMapCreated: (controller) {
+                _mapController = controller;
+                if (_currentPosition != null && _markers.isEmpty) {
+                  _mapController!.animateCamera(
+                    CameraUpdate.newLatLng(
+                      LatLng(_currentPosition!.latitude, _currentPosition!.longitude),
+                    ),
+                  );
+                }
+              },
               myLocationEnabled: true,
               myLocationButtonEnabled: true,
             ),
