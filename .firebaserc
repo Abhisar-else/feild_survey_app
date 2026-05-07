@@ -1,10 +1,8 @@
 {
   "projects": {
-    "default": {
       "projectId": "survey-app-767fc",
       "databaseURL": "https://survey-app-767fc.firebaseio.com",
       "storageBucket": "survey-app-767fc.appspot.com"
-    }
   },
   "targets": {
     "survey-app-767fc": {
