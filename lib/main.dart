@@ -35,7 +35,7 @@ class FieldSurveyApp extends StatelessWidget {
       title: 'Field Survey App',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF1565C0)),
+        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF1A65FF)),
         useMaterial3: true,
         fontFamily: 'Roboto',
       ),
@@ -140,7 +140,7 @@ class _LoginScreenState extends State<LoginScreen>
                       width: 90,
                       height: 90,
                       decoration: BoxDecoration(
-                        color: const Color(0xFF1565C0),
+                        color: const Color(0xFF1A65FF),
                         borderRadius: BorderRadius.circular(24),
                         boxShadow: [
                           BoxShadow(
@@ -371,7 +371,7 @@ class _LoginScreenState extends State<LoginScreen>
                               child: ElevatedButton(
                                 onPressed: _isLoading ? null : _handleLogin,
                                 style: ElevatedButton.styleFrom(
-                                  backgroundColor: const Color(0xFF1565C0),
+                                  backgroundColor: const Color(0xFF1A65FF),
                                   foregroundColor: Colors.white,
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(14),
@@ -422,7 +422,7 @@ class _LoginScreenState extends State<LoginScreen>
                     ),
                     const SizedBox(height: 40),
                     const Text(
-                      'Field Survey App v1.0.0',
+                      'Field Survey App v1.1.0-NEW',
                       style: TextStyle(fontSize: 12, color: Color(0xFFBDC3CF)),
                     ),
                     const SizedBox(height: 20),

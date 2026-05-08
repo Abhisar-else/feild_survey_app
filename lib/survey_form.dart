@@ -158,7 +158,7 @@ class _CreateSurveyScreenState extends State<CreateSurveyScreen> {
                   : const Icon(Icons.save_rounded, size: 18),
               label: Text(_isSaving ? 'Saving...' : 'Save'),
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF1A73E8),
+                backgroundColor: const Color(0xFF1A65FF),
                 foregroundColor: Colors.white,
                 elevation: 0,
                 shape: RoundedRectangleBorder(
@@ -247,7 +247,7 @@ class _CreateSurveyScreenState extends State<CreateSurveyScreen> {
                 decoration: BoxDecoration(
                   color: Colors.transparent,
                   border: Border.all(
-                    color: const Color(0xFF1A73E8).withValues(alpha: 0.5),
+                    color: const Color(0xFF1A65FF).withValues(alpha: 0.5),
                     width: 1.5,
                     // dashed border via custom painter below
                   ),

@@ -51,7 +51,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
           'Analytics',
           style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
         ),
-        backgroundColor: const Color(0xFF9B00FF),
+        backgroundColor: const Color(0xFF1A65FF),
         iconTheme: const IconThemeData(color: Colors.white),
         elevation: 0,
       ),
@@ -182,10 +182,10 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: const Color(0xFF9B00FF).withAlpha(25),
+              color: const Color(0xFF1A65FF).withAlpha(25),
               borderRadius: BorderRadius.circular(10),
             ),
-            child: const Icon(Icons.analytics, color: Color(0xFF9B00FF), size: 20),
+            child: const Icon(Icons.analytics, color: Color(0xFF1A65FF), size: 20),
           ),
           const SizedBox(width: 16),
           Expanded(

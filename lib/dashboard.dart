@@ -7,6 +7,7 @@ import 'package:mobile_scanner/mobile_scanner.dart';
 import 'survey_form.dart';
 import 'analytic.dart';
 import 'models/survey_model.dart';
+import 'models/user_session.dart';
 import 'services/survey_service.dart';
 import 'services/auth_service.dart';
 import 'services/location_service.dart';
@@ -124,13 +125,36 @@ class _HomeTabState extends State<_HomeTab> {
   final SurveyService _surveyService = SurveyService();
   final LocationService _locationService = LocationService();
   late Future<List<Survey>> _surveysFuture;
+  int _pendingCount = 0;
+  int _thisWeekCount = 0;
   Position? _currentPosition;
 
   @override
   void initState() {
     super.initState();
-    _surveysFuture = _surveyService.getAllSurveys();
+    _loadData();
     _updateLocation();
+  }
+
+  Future<void> _loadData() async {
+    final surveys = _surveyService.getAllSurveys();
+    final pending = _surveyService.getUnsyncedResponses();
+    
+    // Calculate surveys from this week
+    final allSurveys = await surveys;
+    final now = DateTime.now();
+    final weekAgo = now.subtract(const Duration(days: 7));
+    final weekCount = allSurveys.where((s) => s.createdAt.isAfter(weekAgo)).length;
+    
+    final unsynced = await pending;
+
+    if (mounted) {
+      setState(() {
+        _surveysFuture = surveys;
+        _pendingCount = unsynced.length;
+        _thisWeekCount = weekCount;
+      });
+    }
   }
 
   Future<void> _updateLocation() async {
@@ -192,9 +216,7 @@ class _HomeTabState extends State<_HomeTab> {
   }
 
   void _reloadSurveys() {
-    setState(() {
-      _surveysFuture = _surveyService.getAllSurveys();
-    });
+    _loadData();
   }
 
   @override
@@ -246,7 +268,7 @@ class _HomeTabState extends State<_HomeTab> {
                           child: _buildActionCard(
                             title: 'Analytics',
                             icon: Icons.bar_chart,
-                            color: const Color(0xFF9B00FF),
+                            color: const Color(0xFF1A65FF),
                             onTap: () {
                               Navigator.push(
                                 context,
@@ -365,20 +387,20 @@ class _HomeTabState extends State<_HomeTab> {
                     color: Colors.white.withAlpha((255 * 0.15).round()),
                     borderRadius: BorderRadius.circular(16),
                   ),
-                  child: const Column(
+                    child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        '12',
-                        style: TextStyle(
+                        '$_pendingCount',
+                        style: const TextStyle(
                           color: Colors.white,
                           fontSize: 24,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
-                      SizedBox(height: 4),
-                      Text(
-                        'In Progress',
+                      const SizedBox(height: 4),
+                      const Text(
+                        'Unsynced',
                         style: TextStyle(color: Colors.white70, fontSize: 14),
                       ),
                     ],
@@ -393,19 +415,19 @@ class _HomeTabState extends State<_HomeTab> {
                     color: Colors.white.withAlpha((255 * 0.15).round()),
                     borderRadius: BorderRadius.circular(16),
                   ),
-                  child: const Column(
+                  child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        '28',
-                        style: TextStyle(
+                        '$_thisWeekCount',
+                        style: const TextStyle(
                           color: Colors.white,
                           fontSize: 24,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
-                      SizedBox(height: 4),
-                      Text(
+                      const SizedBox(height: 4),
+                      const Text(
                         'This Week',
                         style: TextStyle(color: Colors.white70, fontSize: 14),
                       ),
@@ -739,11 +761,37 @@ class _QuestionPreview extends StatelessWidget {
   }
 }
 
-class _SettingsTab extends StatelessWidget {
+class _SettingsTab extends StatefulWidget {
   const _SettingsTab();
 
   @override
+  State<_SettingsTab> createState() => _SettingsTabState();
+}
+
+class _SettingsTabState extends State<_SettingsTab> {
+  UserSession? _session;
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSession();
+  }
+
+  Future<void> _loadSession() async {
+    final session = await AuthService.instance.currentSession();
+    if (mounted) {
+      setState(() {
+        _session = session;
+        _isLoading = false;
+      });
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    const primaryColor = Color(0xFF1A65FF);
+    
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FA),
       body: SafeArea(
@@ -758,30 +806,43 @@ class _SettingsTab extends StatelessWidget {
                   left: 20,
                   right: 20,
                   top: 40,
-                  bottom: 24,
+                  bottom: 32,
                 ),
                 decoration: const BoxDecoration(
-                  color: Color(0xFF1A65FF),
+                  color: primaryColor,
                   borderRadius: BorderRadius.only(
-                    bottomLeft: Radius.circular(24),
-                    bottomRight: Radius.circular(24),
+                    bottomLeft: Radius.circular(32),
+                    bottomRight: Radius.circular(32),
                   ),
                 ),
-                child: const Column(
+                child: Column(
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
+                    Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: const BoxDecoration(
+                        color: Colors.white24,
+                        shape: BoxShape.circle,
+                      ),
+                      child: const CircleAvatar(
+                        radius: 40,
+                        backgroundColor: Colors.white,
+                        child: Icon(Icons.person, size: 50, color: primaryColor),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
                     Text(
-                      'Settings',
-                      style: TextStyle(
-                        fontSize: 28,
+                      _session?.name ?? 'Surveyor',
+                      style: const TextStyle(
+                        fontSize: 24,
                         fontWeight: FontWeight.bold,
                         color: Colors.white,
                       ),
                     ),
-                    SizedBox(height: 4),
+                    const SizedBox(height: 4),
                     Text(
-                      'Manage your preferences',
-                      style: TextStyle(fontSize: 14, color: Colors.white70),
+                      _session?.email ?? 'Loading...',
+                      style: const TextStyle(fontSize: 14, color: Colors.white70),
                     ),
                   ],
                 ),
@@ -791,46 +852,86 @@ class _SettingsTab extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    const Text(
+                      'Account Settings',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF1A1A1A),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
                     _buildSettingsItem(
                       icon: Icons.person_outline,
-                      title: 'Profile',
-                      subtitle: 'Manage your account',
-                      onTap: () {},
+                      title: 'Profile Details',
+                      subtitle: 'Name, Email, and Role',
+                      onTap: () => _showProfileInfo(),
                     ),
                     _buildSettingsItem(
                       icon: Icons.notifications_outlined,
                       title: 'Notifications',
-                      subtitle: 'Configure alerts',
-                      onTap: () {},
+                      subtitle: 'Configure app alerts',
+                      onTap: () => _showNotImplemented('Notifications'),
                     ),
                     _buildSettingsItem(
                       icon: Icons.lock_outline,
                       title: 'Privacy & Security',
-                      subtitle: 'Password and security',
-                      onTap: () {},
+                      subtitle: 'Security preferences',
+                      onTap: () => _showNotImplemented('Security'),
                     ),
+                    const SizedBox(height: 24),
+                    const Text(
+                      'App Information',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF1A1A1A),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
                     _buildSettingsItem(
                       icon: Icons.help_outline,
                       title: 'Help & Support',
                       subtitle: 'Get assistance',
-                      onTap: () {},
+                      onTap: () => _showNotImplemented('Help & Support'),
                     ),
                     _buildSettingsItem(
                       icon: Icons.info_outline,
                       title: 'About',
-                      subtitle: 'App version 1.0.0',
-                      onTap: () {},
+                      subtitle: 'Version 1.1.0-NEW',
+                      onTap: () => _showAbout(),
                     ),
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 32),
                     _buildSettingsItem(
                       icon: Icons.logout,
                       title: 'Logout',
                       subtitle: 'Sign out of your account',
                       iconColor: Colors.red,
                       onTap: () async {
-                        await AuthService.instance.logout();
-                        if (context.mounted) {
-                          Navigator.pushReplacementNamed(context, '/');
+                        final confirm = await showDialog<bool>(
+                          context: context,
+                          builder: (context) => AlertDialog(
+                            title: const Text('Logout'),
+                            content: const Text('Are you sure you want to sign out?'),
+                            actions: [
+                              TextButton(
+                                onPressed: () => Navigator.pop(context, false),
+                                child: const Text('Cancel'),
+                              ),
+                              TextButton(
+                                onPressed: () => Navigator.pop(context, true),
+                                style: TextButton.styleFrom(foregroundColor: Colors.red),
+                                child: const Text('Logout'),
+                              ),
+                            ],
+                          ),
+                        );
+
+                        if (confirm == true) {
+                          await AuthService.instance.logout();
+                          if (mounted) {
+                            Navigator.pushReplacementNamed(context, '/');
+                          }
                         }
                       },
                     ),
@@ -844,6 +945,75 @@ class _SettingsTab extends StatelessWidget {
     );
   }
 
+  void _showProfileInfo() {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Profile Information',
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 20),
+            _infoRow('Name', _session?.name ?? 'N/A'),
+            const Divider(),
+            _infoRow('Email', _session?.email ?? 'N/A'),
+            const Divider(),
+            _infoRow('Role', _session?.role ?? 'Field Worker'),
+            const SizedBox(height: 24),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton(
+                style: FilledButton.styleFrom(backgroundColor: const Color(0xFF1A65FF)),
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Close'),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _infoRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label, style: const TextStyle(color: Colors.grey)),
+          Text(value, style: const TextStyle(fontWeight: FontWeight.w500)),
+        ],
+      ),
+    );
+  }
+
+  void _showAbout() {
+    showAboutDialog(
+      context: context,
+      applicationName: 'Field Survey App',
+      applicationVersion: '1.1.0-NEW',
+      applicationLegalese: '© 2024 Field Survey Team',
+      children: [
+        const SizedBox(height: 12),
+        const Text('This app allows field surveyors to collect data offline and sync it whenever they have a stable internet connection.'),
+      ],
+    );
+  }
+
+  void _showNotImplemented(String feature) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('$feature settings will be available in the next update.')),
+    );
+  }
+
   Widget _buildSettingsItem({
     required IconData icon,
     required String title,
@@ -851,10 +1021,12 @@ class _SettingsTab extends StatelessWidget {
     required VoidCallback onTap,
     Color? iconColor,
   }) {
+    const primaryColor = Color(0xFF1A65FF);
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
-      child: GestureDetector(
+      child: InkWell(
         onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
         child: Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
@@ -867,14 +1039,12 @@ class _SettingsTab extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: (iconColor ?? const Color(0xFF1A65FF)).withAlpha(
-                    (255 * 0.1).round(),
-                  ),
+                  color: (iconColor ?? primaryColor).withOpacity(0.1),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Icon(
                   icon,
-                  color: iconColor ?? const Color(0xFF1A65FF),
+                  color: iconColor ?? primaryColor,
                   size: 22,
                 ),
               ),
@@ -887,7 +1057,7 @@ class _SettingsTab extends StatelessWidget {
                       title,
                       style: TextStyle(
                         fontSize: 16,
-                        fontWeight: FontWeight.w500,
+                        fontWeight: FontWeight.w600,
                         color: iconColor ?? const Color(0xFF1A1A1A),
                       ),
                     ),
@@ -905,6 +1075,7 @@ class _SettingsTab extends StatelessWidget {
               Icon(
                 Icons.chevron_right,
                 color: iconColor ?? const Color(0xFF8A94A6),
+                size: 20,
               ),
             ],
           ),
