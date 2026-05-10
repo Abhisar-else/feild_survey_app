@@ -1,189 +1,163 @@
-# 📋 Field Survey App
+# Field Survey App
 
 A **Mobile-Based Distributed Data Collection Framework** that enables field workers to collect survey data offline and sync it to a central data warehouse when connectivity is available.
 
 > **Project Guide:** Dr. Praveen Goyal  
-> **Tech Stack:** Flutter · Node.js · SQLite · MYSQL 
+> **Tech Stack:** Flutter · Firebase · Node.js · SQLite · MySQL
 > **Domain:** Mobile App + Networks + Data Warehousing
+> **Status:** Deployment Ready · Audited · Optimized
 
 ---
 
-## 📌 Table of Contents
+## Table of Contents
 
-- [Overview]
-- [Features]
-- [System Architecture]
-- [Tech Stack]
-- [Getting Started]
-- [Project Structure]
-- [API Endpoints]
-- [Database Schema]
-- [Screenshots]
-- [Team]
-- [License]
+- [Overview](#overview)
+- [Features](#features)
+- [System Architecture](#system-architecture)
+- [Tech Stack](#tech-stack)
+- [Quality Assurance & Testing](#quality-assurance--testing)
+- [Getting Started](#getting-started)
+- [Project Structure](#project-structure)
+- [API Endpoints](#api-endpoints)
+- [Database Schema](#database-schema)
+- [Team](#team)
+- [License](#license)
 
 ---
 
-## 🧭 Overview
+## Overview
 
 The Field Survey App solves a critical problem faced by field researchers, healthcare workers, and data collectors — **the inability to collect data in areas with poor or no internet connectivity.**
 
 This app allows users to:
-- Create and manage surveys from an admin panel
-- Fill out survey forms in the field — **even without internet**
-- Automatically sync collected data to a cloud database when connectivity is restored
-- View and analyze collected data through a dashboard
+- Create and manage complex surveys with a drag-and-drop builder.
+- Capture visual evidence via **Photo Proofs** and precise GPS coordinates.
+- Fill out survey forms in the field — **even without internet** — with auto-save draft protection.
+- Automatically sync collected data to a cloud database when connectivity is restored.
+- View and analyze global reach through professional charts and interactive maps.
+- Export data to professional CSV/Excel files for business analysis.
 
 ---
 
-## ✨ Features
+## Features
 
-### 👤 Field Worker
-- Login with role-based access
-- View assigned surveys
-- Fill forms with text, images, GPS location, and dropdowns
-- Store responses **locally (offline)** using SQLite
-- **Auto-sync** to cloud when internet is detected
-- View sync status for each submission
+### Field Worker / Surveyor
+- **Secure Identity**: Sign Up and Sign In via Firebase Authentication.
+- **Visual Evidence**: Capture photos as "Proof of Work" (Firebase Storage).
+- **Location Tagging**: Automatic GPS capture for every submission.
+- **Offline Reliability**: Store responses locally using SQLite with **Auto-Save Drafts** to prevent data loss.
+- **Auto-sync**: Data is pushed to the cloud automatically when internet is detected.
 
-### 🛠️ Admin
-- Create and manage surveys and questions
-- Assign surveys to field workers
-- View real-time response data
-- Export data to CSV / Excel
-- Monitor sync activity and field worker status
+### Admin / Manager
+- **Advanced Builder**: Create forms with 7 question types (Text, MCQ, Photo, etc.) and reorder them with drag-and-drop.
+- **Template Editor**: Edit existing surveys without losing previous data.
+- **Public Distribution**: Generate instant QR codes and public links for anyone to fill forms without logging in.
+- **Data Management**: View all submissions in expandable cards or delete outdated surveys.
+- **Data Export**: One-click download of individual or **Master Master CSV** files.
 
-### 📊 Data Warehouse
-- Centralized PostgreSQL database
-- Timestamped records with device metadata
-- Conflict resolution for duplicate submissions
-- REST API for third-party integrations
+### Professional Analytics
+- **Reach Dashboard**: Real-time counter of "Total Reach" vs "Total Forms."
+- **Visual Trends**: Interactive Pie Charts (via `fl_chart`) showing survey distribution.
+- **Transmission Status**: Visual progress bar showing % of data safely secured on the cloud.
+- **Geographic Verification**: Interactive map with clickable pins showing data previews of physical submissions.
 
 ---
 
-## 🏗️ System Architecture
+## System Architecture
 
 ```
 ┌─────────────────────┐         ┌──────────────────────┐
 │   Flutter Mobile App │◄───────►│   Node.js REST API   │
-│  (Android / iOS)    │  HTTPS  │   (Express.js)       │
+│  (PWA / Android / iOS)│  HTTPS  │   (Express.js)       │
 │                     │         └──────────┬───────────┘
 │  ┌───────────────┐  │                    │
 │  │  SQLite (Local│  │                    ▼
 │  │  Offline DB)  │  │         ┌──────────────────────┐
-│  └───────────────┘  │         │   MYSQL Database │
+│  └───────────────┘  │         │   MYSQL Database     │
 │                     │         │   (Data Warehouse)   │
 └─────────────────────┘         └──────────────────────┘
 ```
 
-**Data Flow:**
-1. Admin creates surveys via web/app panel
-2. Field worker downloads surveys to mobile app
-3. Field worker fills forms (online or offline)
-4. Responses stored in local SQLite DB
-5. App detects internet → triggers background sync
-6. Data pushed to MYSQL via REST API
-7. Admin views results on dashboard
-
 ---
 
-## 🛠️ Tech Stack
+## Tech Stack
 
 | Layer | Technology | Purpose |
 |-------|-----------|---------|
-| Mobile App | Flutter (Dart) | Cross-platform UI (Android + iOS) |
-| Local Storage | SQLite / Hive | Offline data storage |
-| Backend | Node.js + Express | REST API server |
-| Cloud Database | MYSQL | Central data warehouse |
-| Authentication | JWT Tokens | Secure login |
-| State Management | Provider / Riverpod | Flutter state |
-| Network Detection | connectivity_plus | Detect online/offline |
-| Maps & GPS | geolocator | Location tagging |
+| **Frontend** | Flutter (Dart) | High-performance UI & PWA support |
+| **Authentication** | Firebase Auth | Secure user management |
+| **Cloud Storage** | Firebase Storage| Hosting field photo proofs |
+| **Local Storage** | SQLite | Offline data, sync tracking, and drafts |
+| **Backend** | Node.js + Express | REST API server |
+| **Cloud Database** | MYSQL | Central data warehouse |
+| **Charts & Maps** | fl_chart / Google Maps| Data visualization & Geographic hub |
+| **Export Tool** | csv | Excel-compatible reporting |
 
 ---
 
-## 🚀 Getting Started
+## Quality Assurance & Testing
+
+The application has passed a professional 6-stage testing audit:
+
+1. **Functional Testing**: Verified registration, builder reordering, and submission logic.
+2. **Performance Testing**: Optimized via Tree-Shaking. Initial load optimized for 4G speeds.
+3. **Accessibility Testing**: Integrated WCAG-compliant contrast and semantic labels for Screen Readers.
+4. **Compatibility Testing**: Verified on Chrome, Safari, and Edge across multiple screen sizes.
+5. **Security Audit**: Secured API keys via domain restriction and excluded sensitive credentials from Git.
+6. **Alpha/Beta Testing**: Simulated power/internet failure to verify SQLite draft restoration logic.
+
+---
+
+## Getting Started
 
 ### Prerequisites
-
-- Flutter SDK `>=3.0.0`
+- Flutter SDK `>=3.11`
 - Node.js `>=18.x`
-- 
-- Android Studio / VS Code
+- Firebase Account
 
-### 1. Clone the Repository
-
+### 1. Clone & Setup
 ```bash
-git clone https://github.com/yourusername/field-survey-app.git
-cd field-survey-app
+git clone https://github.com/Abhisar-else/feild_survey_app.git
+cd feild_survey_app
+flutter pub get
 ```
 
 ### 2. Backend Setup
-
 ```bash
 cd backend
 npm install
-cp .env.example .env
-# Fill in your database credentials in .env
-npm run migrate    # Run DB migrations
-npm start          # Start the server on port 3000
+# Configure your .env based on .env.example
+npm start
 ```
 
-### 3. Flutter App Setup
-
+### 3. Deployment
+Run the professional deployment script (Windows):
 ```bash
-cd mobile
-flutter pub get
-# Update lib/config/api_config.dart with your backend URL
-flutter run
-```
-
-### 4. Environment Variables (`.env`)
-
-```env
-PORT=3000
-DB_HOST=localhost
-DB_PORT=5432
-DB_NAME=field_survey_db
-DB_USER=your_db_user
-DB_PASSWORD=your_db_password
-JWT_SECRET=your_jwt_secret_key
+.\deploy-web.bat
 ```
 
 ---
 
-## 📁 Project Structure
+## Project Structure
 
 ```
 field-survey-app/
-│
-├── mobile/                     # Flutter App
-│   ├── lib/
-│   │   ├── config/             # API config, constants
-│   │   ├── models/             # Data models
-│   │   ├── screens/            # UI screens
-│   │   │   ├── auth/           # Login screen
-│   │   │   ├── surveys/        # Survey list & form
-│   │   │   └── dashboard/      # Admin dashboard
-│   │   ├── services/           # API & sync services
-│   │   ├── database/           # SQLite local DB
-│   │   └── main.dart
-│   └── pubspec.yaml
-│
-├── backend/                    # Node.js Server
-│   ├── routes/                 # API routes
-│   ├── controllers/            # Route handlers
-│   ├── models/                 # DB models
-│   ├── middleware/             # Auth middleware
-│   ├── migrations/             # DB migrations
-│   └── server.js
-│
+├── lib/
+│   ├── models/             # Data structures (Survey, Response, User)
+│   ├── screens/            # UI (Login, SignUp, Dashboard, Responses)
+│   ├── services/           # Logic (Auth, Survey, Sync, Location, Downloads)
+│   ├── fill_survey.dart    # Public form filling interface
+│   ├── analytic.dart       # Professional reach dashboard
+│   └── main.dart           # App entry and route configuration
+├── backend/                # Node.js Server & MySQL integration
+├── web/                    # PWA & Web configuration
+├── .gitignore              # Professional security isolation
 └── README.md
 ```
 
 ---
 
-## 🔌 API Endpoints
+## API Endpoints
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
@@ -193,88 +167,30 @@ field-survey-app/
 | POST | `/api/surveys` | Create new survey |
 | POST | `/api/responses` | Submit survey response |
 | GET | `/api/responses` | Get all responses (admin) |
-| GET | `/api/responses/export` | Export responses to CSV |
 
 ---
 
-## 🗄️ Database Schema
+## Database Schema
 
-### Users
-```sql
-CREATE TABLE users (
-  id SERIAL PRIMARY KEY,
-  name VARCHAR(100),
-  email VARCHAR(100) UNIQUE,
-  password_hash TEXT,
-  role VARCHAR(20),   -- 'admin' or 'field_worker'
-  created_at TIMESTAMP DEFAULT NOW()
-);
-```
-
-### Surveys
-```sql
-CREATE TABLE surveys (
-  id SERIAL PRIMARY KEY,
-  title VARCHAR(200),
-  description TEXT,
-  created_by INT REFERENCES users(id),
-  created_at TIMESTAMP DEFAULT NOW()
-);
-```
-
-### Responses
-```sql
-CREATE TABLE responses (
-  id SERIAL PRIMARY KEY,
-  survey_id INT REFERENCES surveys(id),
-  user_id INT REFERENCES users(id),
-  answers JSONB,
-  latitude DECIMAL,
-  longitude DECIMAL,
-  synced_at TIMESTAMP,
-  device_id VARCHAR(100),
-  created_at TIMESTAMP DEFAULT NOW()
-);
-```
+- **Users**: `id, name, email, password_hash, role, created_at`
+- **Surveys**: `id, title, description, questions_json, created_at`
+- **Responses**: `id, survey_id, answers_json, latitude, longitude, synced_at`
 
 ---
 
-## 📸 Screenshots
-
-> *(Add screenshots of the app here after development)*
-
-| Login Screen | Survey List | Form Filling | Sync Status |
-|---|---|---|---|
-| ![login](#) | ![surveys](#) | ![form](#) | ![sync](#) |
-
----
-
-## 👥 Team
+## Team
 
 | Name | Roll No |  
 |------|---------|
-| Aditi Nigam | PU02324EUGBTCS011 | 
-| Abhisar Sharma | PU02324EUGBTCS008 | 
-| Adeesh Jain | PU02324EUGBTCS009 | 
-| Divyanshu Dave | PU02324EUGBTCS040 |
+| **Abhisar Sharma** | PU02324EUGBTCS008 | 
+| **Aditi Nigam** | PU02324EUGBTCS011 | 
+| **Adeesh Jain** | PU02324EUGBTCS009 | 
+| **Divyanshu Dave** | PU02324EUGBTCS040 |
 
 **Project Guide:** Dr. Praveen Goyal
 
 ---
 
-## 📄 License
-
-This project is developed as part of an academic internship/project under **Symbiosis university of applied science**.  
-For educational use only.
-
----
-
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/your-feature`)
-3. Commit your changes (`git commit -m 'Add some feature'`)
-4. Push to the branch (`git push origin feature/your-feature`)
-5. Open a Pull Request
-
----
+## License
+Developed as part of an academic project under **Symbiosis University of Applied Science**.
+© 2024 Field Survey Team. All rights reserved.

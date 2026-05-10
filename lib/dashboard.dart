@@ -145,7 +145,13 @@ class _HomeTab extends StatefulWidget {
 class _HomeTabState extends State<_HomeTab> {
   final SurveyService _surveyService = SurveyService();
   final LocationService _locationService = LocationService();
+  final TextEditingController _searchController = TextEditingController();
+  
   late Future<List<Survey>> _surveysFuture;
+  List<Survey> _allSurveys = [];
+  List<Survey> _filteredSurveys = [];
+  String _selectedFilter = 'All';
+  
   int _pendingCount = 0;
   int _thisWeekCount = 0;
   Position? _currentPosition;
@@ -158,24 +164,41 @@ class _HomeTabState extends State<_HomeTab> {
   }
 
   Future<void> _loadData() async {
-    final surveys = _surveyService.getAllSurveys();
-    final pending = _surveyService.getUnsyncedResponses();
+    final surveys = await _surveyService.getAllSurveys();
+    final pending = await _surveyService.getUnsyncedResponses();
     
     // Calculate surveys from this week
-    final allSurveys = await surveys;
     final now = DateTime.now();
     final weekAgo = now.subtract(const Duration(days: 7));
-    final weekCount = allSurveys.where((s) => s.createdAt.isAfter(weekAgo)).length;
+    final weekCount = surveys.where((s) => s.createdAt.isAfter(weekAgo)).length;
     
-    final unsynced = await pending;
-
     if (mounted) {
       setState(() {
-        _surveysFuture = surveys;
-        _pendingCount = unsynced.length;
+        _allSurveys = surveys;
+        _pendingCount = pending.length;
         _thisWeekCount = weekCount;
+        _applyFilters();
       });
     }
+  }
+
+  void _applyFilters() {
+    String query = _searchController.text.toLowerCase();
+    setState(() {
+      _filteredSurveys = _allSurveys.where((survey) {
+        bool matchesSearch = survey.title.toLowerCase().contains(query) || 
+                           survey.description.toLowerCase().contains(query);
+        
+        bool matchesFilter = true;
+        if (_selectedFilter == 'Synced') {
+          matchesFilter = survey.syncStatus == SyncStatus.synced;
+        } else if (_selectedFilter == 'Pending') {
+          matchesFilter = survey.syncStatus == SyncStatus.pending;
+        }
+        
+        return matchesSearch && matchesFilter;
+      }).toList();
+    });
   }
 
   Future<void> _updateLocation() async {
@@ -251,6 +274,7 @@ class _HomeTabState extends State<_HomeTab> {
             children: [
               _buildHeader(),
               _buildLocationStatus(),
+              _buildSearchAndFilters(),
               Padding(
                 padding: const EdgeInsets.all(20.0),
                 child: Column(
@@ -303,56 +327,45 @@ class _HomeTabState extends State<_HomeTab> {
                       ],
                     ),
                     const SizedBox(height: 32),
-                    const Text(
-                      'Recent Surveys',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w400,
-                        color: Color(0xFF1A1A1A),
-                      ),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text(
+                          'Surveys',
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.w400,
+                            color: Color(0xFF1A1A1A),
+                          ),
+                        ),
+                        Text(
+                          '${_filteredSurveys.length} total',
+                          style: const TextStyle(fontSize: 14, color: Colors.grey),
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 16),
-                    FutureBuilder<List<Survey>>(
-                      future: _surveysFuture,
-                      builder: (context, snapshot) {
-                        if (snapshot.connectionState ==
-                            ConnectionState.waiting) {
-                          return const Center(
-                            child: Padding(
-                              padding: EdgeInsets.all(24),
-                              child: CircularProgressIndicator(),
-                            ),
-                          );
-                        }
-
-                        if (snapshot.hasError) {
-                          return _buildEmptyState(
-                            icon: Icons.error_outline,
-                            title: 'Could not load saved surveys',
-                            message: snapshot.error.toString(),
-                          );
-                        }
-
-                        final surveys = snapshot.data ?? const <Survey>[];
-                        if (surveys.isEmpty) {
-                          return _buildEmptyState(
-                            icon: Icons.assignment_outlined,
-                            title: 'No saved surveys yet',
-                            message:
-                                'Create a survey and it will appear here automatically.',
-                          );
-                        }
-
-                        return Column(
-                          children: [
-                            for (final survey in surveys) ...[
-                              _buildSurveyItem(survey),
-                              const SizedBox(height: 12),
-                            ],
+                    if (_filteredSurveys.isEmpty)
+                      _buildEmptyState(
+                        icon: _searchController.text.isNotEmpty || _selectedFilter != 'All'
+                            ? Icons.search_off
+                            : Icons.assignment_outlined,
+                        title: _searchController.text.isNotEmpty || _selectedFilter != 'All'
+                            ? 'No matches found'
+                            : 'No saved surveys yet',
+                        message: _searchController.text.isNotEmpty || _selectedFilter != 'All'
+                            ? 'Try changing your search query or filter.'
+                            : 'Create a survey and it will appear here automatically.',
+                      )
+                    else
+                      Column(
+                        children: [
+                          for (final survey in _filteredSurveys) ...[
+                            _buildSurveyItem(survey),
+                            const SizedBox(height: 12),
                           ],
-                        );
-                      },
-                    ),
+                        ],
+                      ),
                   ],
                 ),
               ),
@@ -360,6 +373,76 @@ class _HomeTabState extends State<_HomeTab> {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildSearchAndFilters() {
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: TextField(
+            controller: _searchController,
+            onChanged: (_) => _applyFilters(),
+            decoration: InputDecoration(
+              hintText: 'Search surveys...',
+              prefixIcon: const Icon(Icons.search, color: Colors.grey),
+              suffixIcon: _searchController.text.isNotEmpty
+                  ? IconButton(
+                      icon: const Icon(Icons.clear),
+                      onPressed: () {
+                        _searchController.clear();
+                        _applyFilters();
+                      },
+                    )
+                  : null,
+              filled: true,
+              fillColor: Colors.white,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: const BorderSide(color: Color(0xFFEAEAEA)),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: const BorderSide(color: Color(0xFFEAEAEA)),
+              ),
+              contentPadding: const EdgeInsets.symmetric(vertical: 0),
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: Row(
+            children: ['All', 'Synced', 'Pending'].map((filter) {
+              final isSelected = _selectedFilter == filter;
+              return Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: FilterChip(
+                  label: Text(filter),
+                  selected: isSelected,
+                  onSelected: (val) {
+                    setState(() => _selectedFilter = filter);
+                    _applyFilters();
+                  },
+                  selectedColor: const Color(0xFF1A65FF).withOpacity(0.1),
+                  checkmarkColor: const Color(0xFF1A65FF),
+                  labelStyle: TextStyle(
+                    color: isSelected ? const Color(0xFF1A65FF) : Colors.grey[700],
+                    fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                  ),
+                  backgroundColor: Colors.white,
+                  side: BorderSide(
+                    color: isSelected ? const Color(0xFF1A65FF) : const Color(0xFFEAEAEA),
+                  ),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                ),
+              );
+            }).toList(),
+          ),
+        ),
+      ],
     );
   }
 
@@ -686,13 +769,13 @@ class _HomeTabState extends State<_HomeTab> {
                             ),
                           );
                         },
-                        icon: const Icon(Icons.list_alt),
+                        icon: const Icon(Icons.list_alt, semanticLabel: 'View responses'),
                         label: const Text('View All Responses'),
                       ),
                     ),
                     const SizedBox(width: 12),
                     IconButton.filled(
-                      tooltip: 'Edit Survey',
+                      tooltip: 'Edit survey template',
                       style: IconButton.styleFrom(
                         backgroundColor: Colors.orange.withOpacity(0.1),
                         foregroundColor: Colors.orange,
@@ -707,18 +790,18 @@ class _HomeTabState extends State<_HomeTab> {
                           ),
                         ).then((_) => _reloadSurveys());
                       },
-                      icon: const Icon(Icons.edit_outlined),
+                      icon: const Icon(Icons.edit_outlined, semanticLabel: 'Edit'),
                     ),
                     const SizedBox(width: 8),
                     IconButton.filled(
-                      tooltip: 'Delete Survey',
+                      tooltip: 'Delete this survey permanently',
                       style: IconButton.styleFrom(
                         backgroundColor: Colors.red.withOpacity(0.1),
                         foregroundColor: Colors.red,
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                       ),
                       onPressed: () => _confirmDeleteSurvey(survey),
-                      icon: const Icon(Icons.delete_outline),
+                      icon: const Icon(Icons.delete_outline, semanticLabel: 'Delete'),
                     ),
                   ],
                 ),

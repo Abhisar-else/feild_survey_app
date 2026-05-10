@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:csv/csv.dart';
+import 'package:fl_chart/fl_chart.dart';
 import 'services/survey_service.dart';
 import 'models/survey_model.dart';
 import 'services/file_download_helper.dart';
@@ -155,8 +156,19 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                       ),
                     ],
                   ),
-                  
-                  const SizedBox(height: 24),
+
+                  const SizedBox(height: 32),
+
+                  // Chart Section
+                  if (_totalResponses > 0 && _surveyStats.any((s) => s.responseCount > 0)) ...[
+                    const Text(
+                      'Survey Distribution',
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 16),
+                    _buildPieChart(),
+                    const SizedBox(height: 24),
+                  ],
                   
                   // Sync Status Section
                   const Text(
@@ -187,6 +199,94 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                 ],
               ),
             ),
+    );
+  }
+
+  Widget _buildPieChart() {
+    // Only show top 5 surveys in pie chart for clarity
+    final sortedStats = List<Survey>.from(_surveyStats)
+      ..sort((a, b) => b.responseCount.compareTo(a.responseCount));
+    final topSurveys = sortedStats.take(5).toList();
+    
+    final List<Color> chartColors = [
+      const Color(0xFF1A65FF),
+      const Color(0xFF00C853),
+      const Color(0xFFFFB300),
+      const Color(0xFFFF5252),
+      const Color(0xFF9C27B0),
+    ];
+
+    return Container(
+      height: 280,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFEAEAEA)),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            flex: 2,
+            child: PieChart(
+              PieChartData(
+                sectionsSpace: 2,
+                centerSpaceRadius: 40,
+                sections: topSurveys.asMap().entries.map((entry) {
+                  final index = entry.key;
+                  final survey = entry.value;
+                  final percentage = (survey.responseCount / _totalResponses) * 100;
+                  
+                  return PieChartSectionData(
+                    color: chartColors[index % chartColors.length],
+                    value: survey.responseCount.toDouble(),
+                    title: '${percentage.toStringAsFixed(0)}%',
+                    radius: 60,
+                    titleStyle: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  );
+                }).toList(),
+              ),
+            ),
+          ),
+          const SizedBox(width: 20),
+          Expanded(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: topSurveys.asMap().entries.map((entry) {
+                return Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 4),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 12,
+                        height: 12,
+                        decoration: BoxDecoration(
+                          color: chartColors[entry.key % chartColors.length],
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          entry.value.title,
+                          style: const TextStyle(fontSize: 11),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
