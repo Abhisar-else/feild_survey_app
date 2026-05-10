@@ -5,6 +5,8 @@ import 'package:flutter/services.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 
 import 'survey_form.dart';
+import 'fill_survey.dart';
+import 'responses_screen.dart';
 import 'analytic.dart';
 import 'models/survey_model.dart';
 import 'models/user_session.dart';
@@ -15,6 +17,25 @@ import 'package:geolocator/geolocator.dart';
 
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:qr_flutter/qr_flutter.dart';
+
+String _formatDate(DateTime date) {
+  const months = [
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
+  ];
+  return '${months[date.month - 1]} ${date.day}, ${date.year}';
+}
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -514,6 +535,11 @@ class _HomeTabState extends State<_HomeTab> {
               ),
             ),
             const SizedBox(width: 12),
+            IconButton(
+              icon: const Icon(Icons.qr_code, color: Color(0xFF1A65FF)),
+              onPressed: () => _showShareQR(survey),
+            ),
+            const SizedBox(width: 8),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               decoration: BoxDecoration(
@@ -572,6 +598,34 @@ class _HomeTabState extends State<_HomeTab> {
     );
   }
 
+  void _confirmDeleteSurvey(Survey survey) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Survey?'),
+        content: Text('This will permanently delete "${survey.title}" and all its collected responses. This cannot be undone.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () async {
+              await _surveyService.deleteSurvey(survey.id);
+              if (mounted) {
+                Navigator.pop(context); // Close dialog
+                Navigator.pop(context); // Close bottom sheet
+                _reloadSurveys();
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Survey deleted')),
+                );
+              }
+            },
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Delete Permanently'),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _showSurveyDetails(Survey survey) {
     showModalBottomSheet<void>(
       context: context,
@@ -614,6 +668,60 @@ class _HomeTabState extends State<_HomeTab> {
                     color: Color(0xFF808080),
                   ),
                 ),
+                const SizedBox(height: 20),
+                Row(
+                  children: [
+                    Expanded(
+                      child: FilledButton.icon(
+                        style: FilledButton.styleFrom(
+                          backgroundColor: const Color(0xFF1A65FF),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                        onPressed: () {
+                          Navigator.pop(context); // Close bottom sheet
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => SurveyResponsesScreen(survey: survey),
+                            ),
+                          );
+                        },
+                        icon: const Icon(Icons.list_alt),
+                        label: const Text('View All Responses'),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    IconButton.filled(
+                      tooltip: 'Edit Survey',
+                      style: IconButton.styleFrom(
+                        backgroundColor: Colors.orange.withOpacity(0.1),
+                        foregroundColor: Colors.orange,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                      onPressed: () {
+                        Navigator.pop(context);
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => CreateSurveyScreen(survey: survey),
+                          ),
+                        ).then((_) => _reloadSurveys());
+                      },
+                      icon: const Icon(Icons.edit_outlined),
+                    ),
+                    const SizedBox(width: 8),
+                    IconButton.filled(
+                      tooltip: 'Delete Survey',
+                      style: IconButton.styleFrom(
+                        backgroundColor: Colors.red.withOpacity(0.1),
+                        foregroundColor: Colors.red,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                      onPressed: () => _confirmDeleteSurvey(survey),
+                      icon: const Icon(Icons.delete_outline),
+                    ),
+                  ],
+                ),
                 const SizedBox(height: 24),
                 const Text(
                   'Questions',
@@ -645,6 +753,65 @@ class _HomeTabState extends State<_HomeTab> {
     );
   }
 
+  void _showShareQR(Survey survey) {
+    // Generate the URL for this specific survey
+    // Note: Use your actual Firebase URL here
+    final surveyUrl = 'https://survey-app-767fc.web.app/#/fill?id=${survey.id}';
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Share "${survey.title}"'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              'Anyone can scan this code to fill out your survey.',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 14, color: Colors.grey),
+            ),
+            const SizedBox(height: 20),
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xFFEAEAEA)),
+              ),
+              child: QrImageView(
+                data: surveyUrl,
+                version: QrVersions.auto,
+                size: 200.0,
+              ),
+            ),
+            const SizedBox(height: 16),
+            SelectableText(
+              surveyUrl,
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Close'),
+          ),
+          FilledButton.icon(
+            onPressed: () {
+              Clipboard.setData(ClipboardData(text: surveyUrl));
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Link copied to clipboard')),
+              );
+            },
+            icon: const Icon(Icons.copy, size: 18),
+            label: const Text('Copy Link'),
+          ),
+        ],
+      ),
+    );
+  }
+
   _SurveyStatusStyle _statusStyle(SyncStatus status) {
     return switch (status) {
       SyncStatus.synced => const _SurveyStatusStyle(
@@ -663,24 +830,6 @@ class _HomeTabState extends State<_HomeTab> {
         foreground: Color(0xFFE67C00),
       ),
     };
-  }
-
-  String _formatDate(DateTime date) {
-    const months = [
-      'Jan',
-      'Feb',
-      'Mar',
-      'Apr',
-      'May',
-      'Jun',
-      'Jul',
-      'Aug',
-      'Sep',
-      'Oct',
-      'Nov',
-      'Dec',
-    ];
-    return '${months[date.month - 1]} ${date.day}, ${date.year}';
   }
 }
 
@@ -1119,6 +1268,33 @@ class _ScannerTabState extends State<_ScannerTab> {
     setState(() {
       _lastScannedValue = value;
     });
+
+    // Smart Detection: If it's one of our survey links, offer to open it
+    if (value.contains('/#/fill?id=')) {
+      final surveyId = value.split('id=').last;
+      _promptOpenSurvey(surveyId);
+    }
+  }
+
+  void _promptOpenSurvey(String surveyId) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: const Text('📋 Survey detected!'),
+        duration: const Duration(seconds: 5),
+        action: SnackBarAction(
+          label: 'OPEN',
+          textColor: Colors.white,
+          onPressed: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => FillSurveyScreen(surveyId: surveyId),
+              ),
+            );
+          },
+        ),
+      ),
+    );
   }
 
   Future<void> _copyLastScan() async {
@@ -1391,17 +1567,8 @@ class _MapTabState extends State<_MapTab> {
         .map((r) => Marker(
               markerId: MarkerId(r.id),
               position: LatLng(r.latitude!, r.longitude!),
-              onTap: () {
-                if (_mapController != null) {
-                  _mapController!.animateCamera(
-                    CameraUpdate.newLatLng(LatLng(r.latitude!, r.longitude!)),
-                  );
-                }
-              },
-              infoWindow: InfoWindow(
-                title: 'Response at ${r.createdAt}',
-                snippet: 'Survey ID: ${r.surveyId}',
-              ),
+              onTap: () => _showResponseDetailOnMap(r),
+              // Remove the old infoWindow so it doesn't block our card
             ))
         .toSet();
 
@@ -1422,6 +1589,91 @@ class _MapTabState extends State<_MapTab> {
         );
       }
     }
+  }
+
+  void _showResponseDetailOnMap(SurveyResponse response) async {
+    final survey = await _surveyService.getSurvey(response.surveyId);
+    if (!mounted || survey == null) return;
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        padding: const EdgeInsets.all(24),
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        survey.title,
+                        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                      ),
+                      Text(
+                        'Captured on ${_formatDate(response.createdAt)}',
+                        style: const TextStyle(fontSize: 12, color: Colors.grey),
+                      ),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.close),
+                  onPressed: () => Navigator.pop(context),
+                )
+              ],
+            ),
+            const Divider(height: 32),
+            const Text('Submission Data:', style: TextStyle(fontWeight: FontWeight.w600, color: Color(0xFF1A65FF))),
+            const SizedBox(height: 12),
+            // Show a summary of answers
+            ...survey.questions.take(3).map((q) {
+              final answer = response.answers[q.id] ?? 'N/A';
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Row(
+                  children: [
+                    Text('${q.text}: ', style: const TextStyle(fontSize: 13, color: Colors.grey)),
+                    Text(answer.toString(), style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
+                  ],
+                ),
+              );
+            }),
+            if (survey.questions.length > 3)
+              const Text('...', style: TextStyle(color: Colors.grey)),
+            const SizedBox(height: 20),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton(
+                style: FilledButton.styleFrom(
+                  backgroundColor: const Color(0xFF1A65FF),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+                onPressed: () {
+                  Navigator.pop(context);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => SurveyResponsesScreen(survey: survey),
+                    ),
+                  );
+                },
+                child: const Text('View Full Submission'),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   @override

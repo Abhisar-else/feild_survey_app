@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:path/path.dart';
 import 'package:sqflite/sqflite.dart';
 
@@ -15,6 +16,7 @@ class DatabaseHelper {
   static const String surveyTable = 'surveys';
   static const String questionTable = 'questions';
   static const String responseTable = 'responses';
+  static const String draftTable = 'drafts';
 
   final String databaseName;
   final DatabaseFactory? databaseFactoryOverride;
@@ -111,6 +113,14 @@ class DatabaseHelper {
       )
     ''');
 
+    await db.execute('''
+      CREATE TABLE $draftTable (
+        survey_id TEXT PRIMARY KEY,
+        answers TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      )
+    ''');
+
     await db.execute(
       'CREATE INDEX idx_questions_survey ON $questionTable (survey_id)',
     );
@@ -123,9 +133,40 @@ class DatabaseHelper {
   }
 
   Future<void> _dropSchema(Database db) async {
+    await db.execute('DROP TABLE IF EXISTS $draftTable');
     await db.execute('DROP TABLE IF EXISTS $responseTable');
     await db.execute('DROP TABLE IF EXISTS $questionTable');
     await db.execute('DROP TABLE IF EXISTS $surveyTable');
+  }
+
+  // Draft operations
+  Future<void> saveDraft(String surveyId, Map<String, dynamic> answers) async {
+    final db = await database;
+    await db.insert(
+      draftTable,
+      {
+        'survey_id': surveyId,
+        'answers': jsonEncode(answers),
+        'updated_at': DateTime.now().toIso8601String(),
+      },
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+  }
+
+  Future<Map<String, dynamic>?> getDraft(String surveyId) async {
+    final db = await database;
+    final maps = await db.query(
+      draftTable,
+      where: 'survey_id = ?',
+      whereArgs: [surveyId],
+    );
+    if (maps.isEmpty) return null;
+    return jsonDecode(maps.first['answers'] as String);
+  }
+
+  Future<void> deleteDraft(String surveyId) async {
+    final db = await database;
+    await db.delete(draftTable, where: 'survey_id = ?', whereArgs: [surveyId]);
   }
 
   Future<void> cacheSurveys(List<Survey> surveys) async {

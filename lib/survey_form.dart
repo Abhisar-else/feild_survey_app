@@ -1,15 +1,18 @@
 import 'package:flutter/material.dart';
+import 'models/survey_model.dart';
 import 'services/survey_service.dart';
 import 'services/auth_service.dart';
 
 class QuestionModel {
+  String? id;
   String text;
   String type;
-  QuestionModel({this.text = '', this.type = 'Text Input'});
+  QuestionModel({this.id, this.text = '', this.type = 'Text Input'});
 }
 
 class CreateSurveyScreen extends StatefulWidget {
-  const CreateSurveyScreen({super.key});
+  final Survey? survey;
+  const CreateSurveyScreen({super.key, this.survey});
 
   @override
   State<CreateSurveyScreen> createState() => _CreateSurveyScreenState();
@@ -18,13 +21,23 @@ class CreateSurveyScreen extends StatefulWidget {
 class _CreateSurveyScreenState extends State<CreateSurveyScreen> {
   final _titleController = TextEditingController();
   final _descController = TextEditingController();
-  final List<QuestionModel> _questions = [QuestionModel()];
+  List<QuestionModel> _questions = [QuestionModel()];
   final SurveyService _surveyService = SurveyService();
   bool _isSaving = false;
 
   @override
   void initState() {
     super.initState();
+    if (widget.survey != null) {
+      _titleController.text = widget.survey!.title;
+      _descController.text = widget.survey!.description;
+      _questions = widget.survey!.questions.map((q) => QuestionModel(
+        id: q.id,
+        text: q.text,
+        type: q.type,
+      )).toList();
+      if (_questions.isEmpty) _questions = [QuestionModel()];
+    }
     _checkAuth();
   }
 
@@ -42,6 +55,7 @@ class _CreateSurveyScreenState extends State<CreateSurveyScreen> {
     'Rating',
     'Date',
     'Number',
+    'Photo/Image',
   ];
 
   void _addQuestion() {
@@ -55,9 +69,18 @@ class _CreateSurveyScreenState extends State<CreateSurveyScreen> {
   }
 
   void _savesurvey() async {
-    if (_titleController.text.trim().isEmpty) {
+    final title = _titleController.text.trim();
+    if (title.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter a survey title')),
+        const SnackBar(content: Text('Please enter a survey title'), backgroundColor: Colors.red),
+      );
+      return;
+    }
+
+    final validQuestions = _questions.where((q) => q.text.trim().isNotEmpty).toList();
+    if (validQuestions.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please add at least one question with text'), backgroundColor: Colors.red),
       );
       return;
     }
@@ -66,32 +89,56 @@ class _CreateSurveyScreenState extends State<CreateSurveyScreen> {
 
     try {
       final session = await AuthService.instance.currentSession();
-      final questionDrafts = _questions
-          .where((question) => question.text.trim().isNotEmpty)
-          .map(
-            (question) => SurveyQuestionDraft(
-              text: question.text.trim(),
-              type: question.type,
-            ),
-          )
-          .toList();
+      
+      if (widget.survey != null) {
+        // Update existing survey
+        final updatedQuestions = validQuestions.asMap().entries.map((entry) {
+          return Question(
+            id: entry.value.id ?? SurveyService.uuid.v4(),
+            surveyId: widget.survey!.id,
+            text: entry.value.text.trim(),
+            type: entry.value.type,
+            order: entry.key,
+          );
+        }).toList();
 
-      // Create survey and questions in the local database.
-      await _surveyService.createSurvey(
-        title: _titleController.text.trim(),
-        description: _descController.text.trim(),
-        creatorName: session?.name,
-        token: session?.token,
-        questions: questionDrafts,
-      );
+        final updatedSurvey = widget.survey!.copyWith(
+          title: title,
+          description: _descController.text.trim(),
+          questions: updatedQuestions,
+          questionCount: updatedQuestions.length,
+          syncStatus: SyncStatus.pending,
+          updatedAt: DateTime.now(),
+        );
+
+        await _surveyService.updateSurvey(updatedSurvey);
+      } else {
+        // Create new survey
+        final questionDrafts = validQuestions
+            .map(
+              (question) => SurveyQuestionDraft(
+                text: question.text.trim(),
+                type: question.type,
+              ),
+            )
+            .toList();
+
+        await _surveyService.createSurvey(
+          title: title,
+          description: _descController.text.trim(),
+          creatorName: session?.name,
+          token: session?.token,
+          questions: questionDrafts,
+        );
+      }
 
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Survey saved successfully offline!'),
-          backgroundColor: Color(0xFF1A73E8),
-          duration: Duration(seconds: 2),
+        SnackBar(
+          content: Text(widget.survey != null ? 'Survey updated successfully!' : 'Survey saved successfully offline!'),
+          backgroundColor: const Color(0xFF1A65FF),
+          duration: const Duration(seconds: 2),
         ),
       );
 
@@ -216,22 +263,34 @@ class _CreateSurveyScreenState extends State<CreateSurveyScreen> {
             const SizedBox(height: 12),
 
             // ── Question Cards ────────────────────────────────────────
-            ListView.separated(
+            ReorderableListView.builder(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
               itemCount: _questions.length,
-              separatorBuilder: (context, index) => const SizedBox(height: 12),
+              onReorder: (oldIndex, newIndex) {
+                setState(() {
+                  if (newIndex > oldIndex) {
+                    newIndex -= 1;
+                  }
+                  final item = _questions.removeAt(oldIndex);
+                  _questions.insert(newIndex, item);
+                });
+              },
               itemBuilder: (context, index) {
-                return _QuestionCard(
-                  index: index,
-                  question: _questions[index],
-                  questionTypes: _questionTypes,
-                  canDelete: _questions.length > 1,
-                  onDelete: () => _removeQuestion(index),
-                  onTextChanged: (v) =>
-                      setState(() => _questions[index].text = v),
-                  onTypeChanged: (v) =>
-                      setState(() => _questions[index].type = v!),
+                return Padding(
+                  key: ValueKey('question_$index'),
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: _QuestionCard(
+                    index: index,
+                    question: _questions[index],
+                    questionTypes: _questionTypes,
+                    canDelete: _questions.length > 1,
+                    onDelete: () => _removeQuestion(index),
+                    onTextChanged: (v) =>
+                        setState(() => _questions[index].text = v),
+                    onTypeChanged: (v) =>
+                        setState(() => _questions[index].type = v!),
+                  ),
                 );
               },
             ),
@@ -247,7 +306,7 @@ class _CreateSurveyScreenState extends State<CreateSurveyScreen> {
                 decoration: BoxDecoration(
                   color: Colors.transparent,
                   border: Border.all(
-                    color: const Color(0xFF1A65FF).withValues(alpha: 0.5),
+                    color: const Color(0xFF1A65FF).withOpacity(0.5),
                     width: 1.5,
                     // dashed border via custom painter below
                   ),
@@ -260,7 +319,7 @@ class _CreateSurveyScreenState extends State<CreateSurveyScreen> {
                       width: 28,
                       height: 28,
                       decoration: const BoxDecoration(
-                        color: Color(0xFF1A73E8),
+                        color: Color(0xFF1A65FF),
                         shape: BoxShape.circle,
                       ),
                       child: const Icon(
@@ -275,7 +334,7 @@ class _CreateSurveyScreenState extends State<CreateSurveyScreen> {
                       style: TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.w600,
-                        color: Color(0xFF1A73E8),
+                        color: Color(0xFF1A65FF),
                       ),
                     ),
                   ],
@@ -307,7 +366,7 @@ class _SectionCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
+            color: Colors.black.withOpacity(0.05),
             blurRadius: 10,
             offset: const Offset(0, 2),
           ),
@@ -371,7 +430,7 @@ class _StyledTextField extends StatelessWidget {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Color(0xFF1A73E8), width: 1.5),
+          borderSide: const BorderSide(color: Color(0xFF1A65FF), width: 1.5),
         ),
       ),
     );
@@ -406,7 +465,7 @@ class _QuestionCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
+            color: Colors.black.withOpacity(0.05),
             blurRadius: 10,
             offset: const Offset(0, 2),
           ),
@@ -433,7 +492,7 @@ class _QuestionCard extends StatelessWidget {
                   child: Container(
                     padding: const EdgeInsets.all(4),
                     decoration: BoxDecoration(
-                      color: Colors.red.withValues(alpha: 0.08),
+                      color: Colors.red.withOpacity(0.08),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: const Icon(
@@ -481,7 +540,7 @@ class _QuestionCard extends StatelessWidget {
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
                 borderSide: const BorderSide(
-                  color: Color(0xFF1A73E8),
+                  color: Color(0xFF1A65FF),
                   width: 1.5,
                 ),
               ),
@@ -513,7 +572,7 @@ class _QuestionCard extends StatelessWidget {
                 isExpanded: true,
                 icon: const Icon(
                   Icons.keyboard_arrow_down_rounded,
-                  color: Color(0xFF1A73E8),
+                  color: Color(0xFF1A65FF),
                 ),
                 style: const TextStyle(
                   fontSize: 14,

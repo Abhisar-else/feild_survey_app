@@ -86,15 +86,11 @@ class AuthService implements AuthServiceBase {
       await _sessionStore.save(session);
       return session;
     } on fb_auth.FirebaseAuthException catch (e) {
-      // Fallback to legacy API if Firebase is not configured or user not found there
-      if (e.code == 'api-not-available' || e.code == 'invalid-api-key') {
-         return _legacyLogin(email: email, password: password);
-      }
-      rethrow;
+      // Return a human-friendly error from Firebase
+      throw Exception(e.message ?? 'Authentication failed');
     } catch (e) {
-      // If Firebase fails (e.g. not configured), try legacy login
-      debugPrint('Firebase Auth failed, trying legacy API: $e');
-      return _legacyLogin(email: email, password: password);
+      debugPrint('Login failed: $e');
+      rethrow;
     }
   }
 
@@ -139,19 +135,11 @@ class AuthService implements AuthServiceBase {
 
       await _sessionStore.save(session);
       return session;
+    } on fb_auth.FirebaseAuthException catch (e) {
+      throw Exception(e.message ?? 'Registration failed');
     } catch (e) {
-      // Try legacy register
-      final payload = await _apiClient.post(
-        '/api/auth/register',
-        body: {
-          'name': name,
-          'email': email.trim(),
-          'password': password,
-        },
-      );
-      final session = UserSession.fromAuthResponse(payload);
-      await _sessionStore.save(session);
-      return session;
+      debugPrint('Registration failed: $e');
+      rethrow;
     }
   }
 

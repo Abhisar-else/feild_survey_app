@@ -162,6 +162,19 @@ class SurveyService {
     await _databaseHelper.deleteResponse(id);
   }
 
+  // Draft operations
+  Future<void> saveDraft(String surveyId, Map<String, dynamic> answers) async {
+    await _databaseHelper.saveDraft(surveyId, answers);
+  }
+
+  Future<Map<String, dynamic>?> getDraft(String surveyId) async {
+    return _databaseHelper.getDraft(surveyId);
+  }
+
+  Future<void> deleteDraft(String surveyId) async {
+    await _databaseHelper.deleteDraft(surveyId);
+  }
+
   // Sync operations
   Future<List<Survey>> getUnsyncedSurveys() async {
     return _databaseHelper.getUnsyncedSurveys();
