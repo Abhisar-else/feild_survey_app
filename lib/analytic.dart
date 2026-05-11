@@ -202,8 +202,9 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
     );
   }
 
+  int _touchedIndex = -1;
+
   Widget _buildPieChart() {
-    // Only show top 5 surveys in pie chart for clarity
     final sortedStats = List<Survey>.from(_surveyStats)
       ..sort((a, b) => b.responseCount.compareTo(a.responseCount));
     final topSurveys = sortedStats.take(5).toList();
@@ -217,73 +218,119 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
     ];
 
     return Container(
-      height: 280,
-      padding: const EdgeInsets.all(20),
+      height: 320,
+      padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFEAEAEA)),
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
+          ),
+        ],
+        border: Border.all(color: const Color(0xFFF0F0F0)),
       ),
-      child: Row(
+      child: Column(
         children: [
           Expanded(
-            flex: 2,
-            child: PieChart(
-              PieChartData(
-                sectionsSpace: 2,
-                centerSpaceRadius: 40,
-                sections: topSurveys.asMap().entries.map((entry) {
-                  final index = entry.key;
-                  final survey = entry.value;
-                  final percentage = (survey.responseCount / _totalResponses) * 100;
-                  
-                  return PieChartSectionData(
-                    color: chartColors[index % chartColors.length],
-                    value: survey.responseCount.toDouble(),
-                    title: '${percentage.toStringAsFixed(0)}%',
-                    radius: 60,
-                    titleStyle: const TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
+            child: Stack(
+              children: [
+                PieChart(
+                  PieChartData(
+                    pieTouchData: PieTouchData(
+                      touchCallback: (FlTouchEvent event, pieTouchResponse) {
+                        setState(() {
+                          if (!event.isInterestedForInteractions ||
+                              pieTouchResponse == null ||
+                              pieTouchResponse.touchedSection == null) {
+                            _touchedIndex = -1;
+                            return;
+                          }
+                          _touchedIndex = pieTouchResponse.touchedSection!.touchedSectionIndex;
+                        });
+                      },
                     ),
-                  );
-                }).toList(),
-              ),
-            ),
-          ),
-          const SizedBox(width: 20),
-          Expanded(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: topSurveys.asMap().entries.map((entry) {
-                return Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 4),
-                  child: Row(
+                    sectionsSpace: 4,
+                    centerSpaceRadius: 60,
+                    sections: topSurveys.asMap().entries.map((entry) {
+                      final index = entry.key;
+                      final isTouched = index == _touchedIndex;
+                      final survey = entry.value;
+                      final fontSize = isTouched ? 16.0 : 12.0;
+                      final radius = isTouched ? 70.0 : 60.0;
+                      final double percentage = (survey.responseCount / _totalResponses) * 100;
+                      
+                      return PieChartSectionData(
+                        color: chartColors[index % chartColors.length],
+                        value: survey.responseCount.toDouble(),
+                        title: isTouched ? '${survey.responseCount}' : '${percentage.toStringAsFixed(0)}%',
+                        radius: radius,
+                        titleStyle: TextStyle(
+                          fontSize: fontSize,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ),
+                Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      Container(
-                        width: 12,
-                        height: 12,
-                        decoration: BoxDecoration(
-                          color: chartColors[entry.key % chartColors.length],
-                          shape: BoxShape.circle,
+                      Text(
+                        '$_totalResponses',
+                        style: const TextStyle(
+                          fontSize: 28,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF1A1A1A),
                         ),
                       ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          entry.value.title,
-                          style: const TextStyle(fontSize: 11),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
+                      const Text(
+                        'Total',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey,
+                          fontWeight: FontWeight.w500,
                         ),
                       ),
                     ],
                   ),
-                );
-              }).toList(),
+                ),
+              ],
             ),
+          ),
+          const SizedBox(height: 24),
+          Wrap(
+            spacing: 12,
+            runSpacing: 8,
+            alignment: WrapAlignment.center,
+            children: topSurveys.asMap().entries.map((entry) {
+              return Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 10,
+                    height: 10,
+                    decoration: BoxDecoration(
+                      color: chartColors[entry.key % chartColors.length],
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    entry.value.title,
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: entry.key == _touchedIndex ? FontWeight.bold : FontWeight.normal,
+                      color: entry.key == _touchedIndex ? const Color(0xFF1A1A1A) : Colors.grey[700],
+                    ),
+                  ),
+                ],
+              );
+            }).toList(),
           ),
         ],
       ),

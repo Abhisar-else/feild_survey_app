@@ -146,6 +146,8 @@ class _HomeTabState extends State<_HomeTab> {
   final SurveyService _surveyService = SurveyService();
   final LocationService _locationService = LocationService();
   final TextEditingController _searchController = TextEditingController();
+  Timer? _debounce;
+  bool _isSyncing = false;
   
   late Future<List<Survey>> _surveysFuture;
   List<Survey> _allSurveys = [];
@@ -161,6 +163,21 @@ class _HomeTabState extends State<_HomeTab> {
     super.initState();
     _loadData();
     _updateLocation();
+  }
+
+  @override
+  void dispose() {
+    _debounce?.cancel();
+    _searchController.dispose();
+    _surveyService.dispose();
+    super.dispose();
+  }
+
+  void _onSearchChanged(String query) {
+    if (_debounce?.isActive ?? false) _debounce!.cancel();
+    _debounce = Timer(const Duration(milliseconds: 300), () {
+      _applyFilters();
+    });
   }
 
   Future<void> _loadData() async {
@@ -253,11 +270,7 @@ class _HomeTabState extends State<_HomeTab> {
     );
   }
 
-  @override
-  void dispose() {
-    _surveyService.dispose();
-    super.dispose();
-  }
+
 
   void _reloadSurveys() {
     _loadData();
@@ -383,7 +396,7 @@ class _HomeTabState extends State<_HomeTab> {
           padding: const EdgeInsets.symmetric(horizontal: 20),
           child: TextField(
             controller: _searchController,
-            onChanged: (_) => _applyFilters(),
+            onChanged: _onSearchChanged,
             decoration: InputDecoration(
               hintText: 'Search surveys...',
               prefixIcon: const Icon(Icons.search, color: Colors.grey),
@@ -469,16 +482,24 @@ class _HomeTabState extends State<_HomeTab> {
                   fontWeight: FontWeight.bold,
                 ),
               ),
-              IconButton(
-                icon: const Icon(Icons.sync, color: Colors.white),
-                onPressed: () async {
-                  final session = await AuthService.instance.currentSession();
-                  if (session != null) {
-                    await _surveyService.syncAllData(session.token);
-                    _reloadSurveys();
-                  }
-                },
-              ),
+              _isSyncing 
+                ? const SizedBox(
+                    width: 24,
+                    height: 24,
+                    child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                  )
+                : IconButton(
+                    icon: const Icon(Icons.sync, color: Colors.white),
+                    onPressed: () async {
+                      setState(() => _isSyncing = true);
+                      final session = await AuthService.instance.currentSession();
+                      if (session != null) {
+                        await _surveyService.syncAllData(session.token);
+                        await _loadData();
+                      }
+                      if (mounted) setState(() => _isSyncing = false);
+                    },
+                  ),
             ],
           ),
           const SizedBox(height: 20),

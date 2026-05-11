@@ -74,20 +74,27 @@ class _FillSurveyScreenState extends State<FillSurveyScreen> {
   Future<void> _submitResponse() async {
     if (_survey == null) return;
 
-    // Validation: Ensure all questions are answered
+    // Validation: Ensure all questions are answered and data types are correct
     for (var q in _survey!.questions) {
+      final answer = _responses[q.id];
+      
+      // 1. Check for empty required fields
       if (q.type == 'Photo/Image') {
         if (_pickedImages[q.id] == null) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Please capture a photo for: ${q.text}'), backgroundColor: Colors.orange),
-          );
+          _showValidationError('Please capture a photo for: ${q.text}');
           return;
         }
       } else {
-        if (_responses[q.id] == null || _responses[q.id].toString().trim().isEmpty) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Please answer: ${q.text}'), backgroundColor: Colors.orange),
-          );
+        if (answer == null || answer.toString().trim().isEmpty) {
+          _showValidationError('Please answer: ${q.text}');
+          return;
+        }
+      }
+
+      // 2. Type-specific validation
+      if (q.type == 'Number') {
+        if (double.tryParse(answer.toString()) == null) {
+          _showValidationError('Invalid number for: ${q.text}');
           return;
         }
       }
@@ -152,6 +159,23 @@ class _FillSurveyScreenState extends State<FillSurveyScreen> {
         setState(() => _isSubmitting = false);
       }
     }
+  }
+
+  void _showValidationError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            const Icon(Icons.error_outline, color: Colors.white),
+            const SizedBox(width: 12),
+            Expanded(child: Text(message)),
+          ],
+        ),
+        backgroundColor: Colors.redAccent,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      ),
+    );
   }
 
   @override
@@ -235,9 +259,16 @@ class _FillSurveyScreenState extends State<FillSurveyScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            q.text,
-            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  q.text,
+                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                ),
+              ),
+              const Text(' *', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
+            ],
           ),
           const SizedBox(height: 12),
           _buildInputForType(q),

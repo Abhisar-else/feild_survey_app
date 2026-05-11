@@ -1,4 +1,5 @@
 import 'package:uuid/uuid.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../database_helper.dart';
 import '../models/survey_model.dart';
 import 'api_client.dart';
@@ -23,9 +24,12 @@ class SurveyQuestionDraft {
 }
 
 class SurveyService {
-  SurveyService({ApiClient? apiClient}) : _apiClient = apiClient ?? ApiClient();
+  SurveyService({ApiClient? apiClient}) 
+    : _apiClient = apiClient ?? ApiClient(),
+      _firestore = FirebaseFirestore.instance;
 
   final ApiClient _apiClient;
+  final FirebaseFirestore _firestore;
   final DatabaseHelper _databaseHelper = DatabaseHelper();
   static const uuid = Uuid();
 
@@ -72,29 +76,16 @@ class SurveyService {
     // Always save locally first
     await _databaseHelper.upsertSurvey(survey);
 
-    // Try to sync if online and token provided
-    if (token != null && await _isOnline()) {
+    // Try to sync to Firestore if online
+    if (await _isOnline()) {
       try {
-        final payload = await _apiClient.post(
-          '/api/surveys',
-          token: token,
-          body: {
-            'client_id': surveyId,
-            'title': title,
-            'description': description,
-            'questions': questions.map((q) => q.toApi()).toList(),
-          },
-        );
+        final surveyData = survey.toDatabase();
+        surveyData['questions'] = survey.questions.map((q) => q.toDatabase()).toList();
         
-        final remoteSurvey = Survey.fromApi(payload['data'] as Map<String, dynamic>);
-        // Update local with remote info (like remoteId)
-        survey = survey.copyWith(
-          remoteId: remoteSurvey.remoteId,
-          syncStatus: SyncStatus.synced,
-        );
+        await _firestore.collection('surveys').doc(surveyId).set(surveyData);
+        survey = survey.copyWith(syncStatus: SyncStatus.synced);
         await _databaseHelper.upsertSurvey(survey);
       } catch (e) {
-        // Fallback to local only, already saved as pending
         print('Failed to sync survey: $e');
       }
     }
@@ -103,11 +94,56 @@ class SurveyService {
   }
 
   Future<List<Survey>> getAllSurveys() async {
+    if (await _isOnline()) {
+      try {
+        final snapshot = await _firestore.collection('surveys').get();
+        for (var doc in snapshot.docs) {
+          final data = doc.data();
+          final List<Question> questions = [];
+          if (data['questions'] != null) {
+            final rawQuestions = data['questions'] as List;
+            for (var q in rawQuestions) {
+              questions.add(Question.fromDatabase(q as Map<String, dynamic>));
+            }
+          }
+          final survey = Survey.fromDatabase(data, questions: questions);
+          // When pulling from cloud, mark as synced
+          final syncedSurvey = survey.copyWith(syncStatus: SyncStatus.synced);
+          await _databaseHelper.upsertSurvey(syncedSurvey);
+        }
+      } catch (e) {
+        print('Cloud Survey Pull Error: $e');
+      }
+    }
     return _databaseHelper.getAllSurveys();
   }
 
   Future<Survey?> getSurvey(String id) async {
-    return _databaseHelper.getSurvey(id);
+    final localSurvey = await _databaseHelper.getSurvey(id);
+    if (localSurvey != null && localSurvey.questions.isNotEmpty) return localSurvey;
+
+    if (await _isOnline()) {
+      try {
+        final doc = await _firestore.collection('surveys').doc(id).get();
+        if (doc.exists && doc.data() != null) {
+          final data = doc.data()!;
+          final List<Question> questions = [];
+          if (data['questions'] != null) {
+            final rawQuestions = data['questions'] as List;
+            for (var q in rawQuestions) {
+              questions.add(Question.fromDatabase(q as Map<String, dynamic>));
+            }
+          }
+          final survey = Survey.fromDatabase(data, questions: questions);
+          final syncedSurvey = survey.copyWith(syncStatus: SyncStatus.synced);
+          await _databaseHelper.upsertSurvey(syncedSurvey);
+          return syncedSurvey;
+        }
+      } catch (e) {
+        print('Cloud Survey Detail Error: $e');
+      }
+    }
+    return localSurvey;
   }
 
   Future<void> updateSurvey(Survey survey) async {
@@ -116,10 +152,24 @@ class SurveyService {
       syncStatus: SyncStatus.pending,
     );
     await _databaseHelper.upsertSurvey(updated);
+    
+    if (await _isOnline()) {
+      try {
+        final surveyData = updated.toDatabase();
+        surveyData['questions'] = updated.questions.map((q) => q.toDatabase()).toList();
+        await _firestore.collection('surveys').doc(survey.id).set(surveyData);
+        await _databaseHelper.markSurveySynced(survey.id);
+      } catch (e) {
+        print('Update sync failed: $e');
+      }
+    }
   }
 
   Future<void> deleteSurvey(String id) async {
     await _databaseHelper.deleteSurvey(id);
+    if (await _isOnline()) {
+      _firestore.collection('surveys').doc(id).delete().catchError((e) => print(e));
+    }
   }
 
   // Response operations
@@ -143,14 +193,53 @@ class SurveyService {
     );
 
     await _databaseHelper.insertResponse(response);
+    
+    if (await _isOnline()) {
+      try {
+        final responseData = response.toDatabase();
+        responseData['sync_status'] = SyncStatus.synced.value; // Mark as synced for cloud
+        await _firestore.collection('responses').doc(clientResponseId).set(responseData);
+        await _databaseHelper.markResponseSynced(clientResponseId: clientResponseId);
+      } catch (e) {
+        print('Response cloud push failed: $e');
+      }
+    }
+    
     return response;
   }
 
   Future<List<SurveyResponse>> getResponsesBySurvey(String surveyId) async {
+    if (await _isOnline()) {
+      try {
+        final snapshot = await _firestore
+            .collection('responses')
+            .where('survey_id', isEqualTo: surveyId)
+            .get();
+        for (var doc in snapshot.docs) {
+          final response = SurveyResponse.fromDatabase(doc.data());
+          final syncedResponse = response.copyWith(syncStatus: SyncStatus.synced);
+          await _databaseHelper.insertResponse(syncedResponse);
+        }
+      } catch (e) {
+        print('Cloud Responses Pull Error: $e');
+      }
+    }
     return _databaseHelper.getResponsesBySurvey(surveyId);
   }
 
   Future<List<SurveyResponse>> getAllResponses() async {
+    if (await _isOnline()) {
+      try {
+        final snapshot = await _firestore.collection('responses').get();
+        for (var doc in snapshot.docs) {
+          final response = SurveyResponse.fromDatabase(doc.data());
+          final syncedResponse = response.copyWith(syncStatus: SyncStatus.synced);
+          await _databaseHelper.insertResponse(syncedResponse);
+        }
+      } catch (e) {
+        print('Global Cloud Pull Error: $e');
+      }
+    }
     return _databaseHelper.getAllResponses();
   }
 
@@ -196,53 +285,31 @@ class SurveyService {
   Future<void> syncAllData(String token) async {
     if (!await _isOnline()) return;
 
-    // 1. Sync Pending Surveys
     final unsyncedSurveys = await getUnsyncedSurveys();
     for (var survey in unsyncedSurveys) {
       try {
-        final payload = await _apiClient.post(
-          '/api/surveys',
-          token: token,
-          body: {
-            'client_id': survey.id,
-            'title': survey.title,
-            'description': survey.description,
-            'questions': survey.questions.map((q) => q.toApi()).toList(),
-          },
-        );
-        final remoteData = payload['data'] as Map<String, dynamic>;
-        await _databaseHelper.markSurveySynced(survey.id, remoteId: remoteData['id'] as int?);
+        final surveyData = survey.toDatabase();
+        surveyData['questions'] = survey.questions.map((q) => q.toDatabase()).toList();
+        await _firestore.collection('surveys').doc(survey.id).set(surveyData);
+        await _databaseHelper.markSurveySynced(survey.id);
       } catch (e) {
-        print('Error syncing survey ${survey.id}: $e');
+        print('Sync survey failed: $e');
       }
     }
 
-    // 2. Sync Pending Responses
     final unsyncedResponses = await getUnsyncedResponses();
-    if (unsyncedResponses.isNotEmpty) {
+    for (var response in unsyncedResponses) {
       try {
-        final payload = await _apiClient.post(
-          '/api/responses/batch', // Assuming a batch endpoint exists
-          token: token,
-          body: {
-            'responses': unsyncedResponses.map((r) => r.toApi()).toList(),
-          },
-        );
-        
-        final results = payload['data'] as List<dynamic>? ?? [];
-        for (var result in results) {
-          final clientId = result['client_response_id'] as String?;
-          if (clientId != null) {
-            await markResponseSynced(clientId);
-          }
-        }
+        final responseData = response.toDatabase();
+        responseData['sync_status'] = SyncStatus.synced.value;
+        await _firestore.collection('responses').doc(response.clientResponseId).set(responseData);
+        await _databaseHelper.markResponseSynced(clientResponseId: response.clientResponseId);
       } catch (e) {
-        print('Error syncing responses: $e');
+        print('Sync response failed: $e');
       }
     }
   }
 
-  // Cleanup
   Future<void> clearAllData() async {
     await _databaseHelper.clearAllData();
   }
