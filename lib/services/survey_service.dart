@@ -232,6 +232,8 @@ class SurveyService {
         final snapshot = await _firestore
             .collection('responses')
             .where('survey_id', isEqualTo: surveyId)
+            .orderBy('created_at', descending: true)
+            .limit(50)
             .get();
         for (var doc in snapshot.docs) {
           final response = SurveyResponse.fromDatabase(doc.data());

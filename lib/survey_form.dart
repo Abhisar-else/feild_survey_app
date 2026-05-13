@@ -68,7 +68,7 @@ class _CreateSurveyScreenState extends State<CreateSurveyScreen> {
     }
   }
 
-  void _savesurvey() async {
+  void _saveSurvey() async {
     final title = _titleController.text.trim();
     if (title.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -192,7 +192,7 @@ class _CreateSurveyScreenState extends State<CreateSurveyScreen> {
           Padding(
             padding: const EdgeInsets.only(right: 16, top: 10, bottom: 10),
             child: ElevatedButton.icon(
-              onPressed: _isSaving ? null : _savesurvey,
+              onPressed: _isSaving ? null : _saveSurvey,
               icon: _isSaving
                   ? const SizedBox(
                       width: 18,

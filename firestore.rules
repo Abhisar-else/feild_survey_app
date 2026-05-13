@@ -1,0 +1,14 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /surveys/{surveyId} {
+      allow read: if true; // Allow anyone to read surveys (to fill them)
+      allow write: if request.auth != null; // Only logged in users can create/edit
+    }
+    match /responses/{responseId} {
+      allow create: if true; // Allow public submissions (via scanned link)
+      allow read: if request.auth != null; // Only logged in users can see data
+      allow update, delete: if request.auth != null;
+    }
+  }
+}

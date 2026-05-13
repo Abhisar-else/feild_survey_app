@@ -6,6 +6,16 @@ const cors = require('cors');
 const morgan = require('morgan');
 require('dotenv').config();
 
+// ── Environment Validation ───────────────────────────────────
+const requiredEnv = ['JWT_SECRET', 'DB_HOST', 'DB_USER', 'DB_PASSWORD', 'DB_NAME'];
+const missingEnv = requiredEnv.filter(key => !process.env[key]);
+
+if (missingEnv.length > 0) {
+  console.error('❌ CRITICAL ERROR: Missing environment variables:', missingEnv.join(', '));
+  console.error('Please check your .env file. Exiting...');
+  process.exit(1);
+}
+
 // Import routes
 const authRoutes = require('./routes/auth');
 const surveyRoutes = require('./routes/surveys');
