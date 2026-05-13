@@ -73,13 +73,19 @@ class AuthService implements AuthServiceBase {
       final user = userCredential.user;
       if (user == null) throw Exception('Firebase login failed: User is null');
 
+      // Refresh user to get latest profile info
+      await user.reload();
+      final refreshedUser = _firebaseAuth.currentUser ?? user;
+
       // 2. Create session from Firebase user
-      final idToken = await user.getIdToken() ?? '';
+      final idToken = await refreshedUser.getIdToken() ?? '';
       final session = UserSession(
         token: idToken,
-        id: user.uid,
-        name: user.displayName ?? 'User',
-        email: user.email ?? email,
+        id: refreshedUser.uid,
+        name: (refreshedUser.displayName != null && refreshedUser.displayName!.isNotEmpty)
+            ? refreshedUser.displayName!
+            : 'User',
+        email: refreshedUser.email ?? email,
         role: 'field_worker', // Default role for Firebase users
       );
 
@@ -123,13 +129,16 @@ class AuthService implements AuthServiceBase {
       if (user == null) throw Exception('Registration failed');
 
       await user.updateDisplayName(name);
-      final idToken = await user.getIdToken() ?? '';
+      await user.reload();
+      
+      final updatedUser = _firebaseAuth.currentUser ?? user;
+      final idToken = await updatedUser.getIdToken() ?? '';
 
       final session = UserSession(
         token: idToken,
-        id: user.uid,
-        name: name,
-        email: email,
+        id: updatedUser.uid,
+        name: updatedUser.displayName ?? name,
+        email: updatedUser.email ?? email,
         role: 'field_worker',
       );
 
@@ -145,30 +154,55 @@ class AuthService implements AuthServiceBase {
 
   @override
   Future<UserSession?> currentSession({bool validate = true}) async {
-    // Check persistent store first
-    final session = await _sessionStore.read();
-    
     // Also check Firebase current user
     final fbUser = _firebaseAuth.currentUser;
+    
+    // Check persistent store
+    UserSession? storedSession = await _sessionStore.read();
 
     if (fbUser != null) {
       final idToken = await fbUser.getIdToken();
-      return UserSession(
-        token: idToken ?? '',
-        id: fbUser.uid,
-        name: fbUser.displayName ?? 'User',
-        email: fbUser.email ?? '',
-        role: 'field_worker',
+      
+      // If Firebase doesn't have a name yet, try to refresh it
+      if (fbUser.displayName == null || fbUser.displayName!.isEmpty) {
+        await fbUser.reload();
+      }
+      
+      final refreshedUser = _firebaseAuth.currentUser ?? fbUser;
+      
+      // Determine the best name to use
+      String name = 'User';
+      if (refreshedUser.displayName != null && refreshedUser.displayName!.isNotEmpty) {
+        name = refreshedUser.displayName!;
+      } else if (storedSession != null && storedSession.name.isNotEmpty && storedSession.name != 'User') {
+        name = storedSession.name;
+      } else if (refreshedUser.email != null && refreshedUser.email!.isNotEmpty) {
+        name = refreshedUser.email!.split('@').first;
+      }
+
+      final session = UserSession(
+        token: idToken ?? storedSession?.token ?? '',
+        id: refreshedUser.uid,
+        name: name,
+        email: refreshedUser.email ?? storedSession?.email ?? '',
+        role: storedSession?.role ?? 'field_worker',
       );
+
+      // Keep the store in sync
+      if (storedSession == null || storedSession.name != name) {
+        await _sessionStore.save(session);
+      }
+      
+      return session;
     }
 
-    if (session == null || session.token.isEmpty) return null;
-    if (!validate) return session;
+    if (storedSession == null || storedSession.token.isEmpty) return null;
+    if (!validate) return storedSession;
 
     try {
-      final payload = await _apiClient.get('/api/auth/me', token: session.token);
+      final payload = await _apiClient.get('/api/auth/me', token: storedSession.token);
       final data = payload['data'] as Map<String, dynamic>? ?? <String, dynamic>{};
-      final validated = session.copyWithUser(data['user'] as Map<String, dynamic>? ?? data);
+      final validated = storedSession.copyWithUser(data['user'] as Map<String, dynamic>? ?? data);
       await _sessionStore.save(validated);
       return validated;
     } on ApiException catch (error) {
@@ -176,7 +210,7 @@ class AuthService implements AuthServiceBase {
         await logout();
         return null;
       }
-      return session;
+      return storedSession;
     }
   }
 

@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../database_helper.dart';
 import '../models/survey_model.dart';
 import 'api_client.dart';
+import 'auth_service.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 
 class SurveyQuestionDraft {
@@ -180,13 +181,30 @@ class SurveyService {
     double? longitude,
   }) async {
     final survey = await _databaseHelper.getSurvey(surveyId);
+    
+    // Get session, ensuring we have the latest user info
+    final session = await AuthService.instance.currentSession(validate: false);
+    
+    final Map<String, dynamic> enrichedData = Map.from(responseData);
+    
+    // Ensure we don't save blank strings if the session failed for some reason
+    String surveyorName = session?.name ?? 'Anonymous';
+    String surveyorEmail = session?.email ?? 'Unknown';
+    
+    if (surveyorName.isEmpty) surveyorName = 'Anonymous';
+    if (surveyorEmail.isEmpty) surveyorEmail = 'Unknown';
+
+    enrichedData['_surveyor_name'] = surveyorName;
+    enrichedData['_surveyor_email'] = surveyorEmail;
+    enrichedData['_iso_timestamp'] = DateTime.now().toIso8601String();
+
     final clientResponseId = uuid.v4();
     final response = SurveyResponse(
       id: clientResponseId,
       clientResponseId: clientResponseId,
       surveyId: surveyId,
       surveyRemoteId: survey?.remoteId ?? 0,
-      answers: responseData,
+      answers: enrichedData,
       createdAt: DateTime.now(),
       latitude: latitude,
       longitude: longitude,

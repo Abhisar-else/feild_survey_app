@@ -44,9 +44,26 @@ class FieldSurveyApp extends StatelessWidget {
       onGenerateRoute: (settings) {
         if (settings.name?.startsWith('/fill') ?? false) {
           final uri = Uri.parse(settings.name!);
-          final surveyId = uri.queryParameters['id'];
+          final surveyId = uri.queryParameters['id'] ?? '';
+          
           return MaterialPageRoute(
-            builder: (context) => FillSurveyScreen(surveyId: surveyId ?? ''),
+            builder: (context) => FutureBuilder(
+              future: AuthService.instance.currentSession(validate: false),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Scaffold(
+                    body: Center(child: CircularProgressIndicator()),
+                  );
+                }
+                
+                final session = snapshot.data;
+                if (session == null) {
+                  return LoginScreen(pendingSurveyId: surveyId);
+                }
+                
+                return FillSurveyScreen(surveyId: surveyId);
+              },
+            ),
           );
         }
         return null;
@@ -62,7 +79,8 @@ class FieldSurveyApp extends StatelessWidget {
 }
 
 class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key});
+  final String? pendingSurveyId;
+  const LoginScreen({super.key, this.pendingSurveyId});
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
@@ -113,7 +131,16 @@ class _LoginScreenState extends State<LoginScreen>
           password: _passwordController.text,
         );
         if (mounted) {
-          Navigator.pushReplacementNamed(context, '/dashboard');
+          if (widget.pendingSurveyId != null) {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (context) => FillSurveyScreen(surveyId: widget.pendingSurveyId!),
+              ),
+            );
+          } else {
+            Navigator.pushReplacementNamed(context, '/dashboard');
+          }
         }
       } catch (e) {
         if (mounted) {
@@ -187,6 +214,33 @@ class _LoginScreenState extends State<LoginScreen>
                         fontWeight: FontWeight.w400,
                       ),
                     ),
+                    if (widget.pendingSurveyId != null) ...[
+                      const SizedBox(height: 24),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFE3F2FD),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: const Color(0xFF1A65FF).withOpacity(0.3)),
+                        ),
+                        child: const Row(
+                          children: [
+                            Icon(Icons.info_outline, color: Color(0xFF1A65FF), size: 20),
+                            SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                'You scanned a survey link, sign in first to continue.',
+                                style: TextStyle(
+                                  color: Color(0xFF1A65FF),
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                     const SizedBox(height: 48),
                     Container(
                       padding: const EdgeInsets.all(28),
@@ -421,7 +475,12 @@ class _LoginScreenState extends State<LoginScreen>
                           style: TextStyle(color: Color(0xFF8A94A6), fontSize: 14),
                         ),
                         GestureDetector(
-                          onTap: () => Navigator.pushNamed(context, '/signup'),
+                          onTap: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => SignUpScreen(pendingSurveyId: widget.pendingSurveyId),
+                            ),
+                          ),
                           child: const Text(
                             'Sign Up',
                             style: TextStyle(
@@ -471,7 +530,8 @@ class _LoginScreenState extends State<LoginScreen>
 }
 
 class SignUpScreen extends StatefulWidget {
-  const SignUpScreen({super.key});
+  final String? pendingSurveyId;
+  const SignUpScreen({super.key, this.pendingSurveyId});
 
   @override
   State<SignUpScreen> createState() => _SignUpScreenState();
@@ -525,7 +585,16 @@ class _SignUpScreenState extends State<SignUpScreen>
           password: _passwordController.text,
         );
         if (mounted) {
-          Navigator.pushReplacementNamed(context, '/dashboard');
+          if (widget.pendingSurveyId != null) {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (context) => FillSurveyScreen(surveyId: widget.pendingSurveyId!),
+              ),
+            );
+          } else {
+            Navigator.pushReplacementNamed(context, '/dashboard');
+          }
         }
       } catch (e) {
         if (mounted) {

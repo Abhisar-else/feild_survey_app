@@ -35,7 +35,14 @@ class _SurveyResponsesScreenState extends State<SurveyResponsesScreen> {
     List<List<dynamic>> rows = [];
 
     // Header row
-    List<dynamic> header = ['Submission Date', 'Latitude', 'Longitude'];
+    List<dynamic> header = [
+      'Submission Date', 
+      'ISO Timestamp',
+      'Surveyor Name', 
+      'Surveyor Email', 
+      'Latitude', 
+      'Longitude'
+    ];
     for (var q in widget.survey.questions) {
       header.add(q.text);
     }
@@ -45,6 +52,9 @@ class _SurveyResponsesScreenState extends State<SurveyResponsesScreen> {
     for (var response in _allResponses) {
       List<dynamic> row = [
         response.createdAt.toIso8601String(),
+        response.answers['_iso_timestamp'] ?? response.createdAt.toIso8601String(),
+        response.answers['_surveyor_name'] ?? 'N/A',
+        response.answers['_surveyor_email'] ?? 'N/A',
         response.latitude ?? '',
         response.longitude ?? '',
       ];
@@ -167,20 +177,14 @@ class _ResponseCard extends StatelessWidget {
               children: [
                 const Divider(),
                 const SizedBox(height: 8),
+                _buildMetadataRow(Icons.person, 'Surveyor', response.answers['_surveyor_name'] ?? 'Anonymous'),
+                _buildMetadataRow(Icons.email, 'Email', response.answers['_surveyor_email'] ?? 'Unknown'),
+                _buildMetadataRow(Icons.access_time, 'ISO Time', response.answers['_iso_timestamp'] ?? response.createdAt.toIso8601String()),
                 if (response.latitude != null)
-                   Padding(
-                     padding: const EdgeInsets.only(bottom: 12),
-                     child: Row(
-                       children: [
-                         const Icon(Icons.location_on, size: 14, color: Colors.red),
-                         const SizedBox(width: 4),
-                         Text(
-                           'Location: ${response.latitude!.toStringAsFixed(4)}, ${response.longitude!.toStringAsFixed(4)}',
-                           style: const TextStyle(fontSize: 12, color: Colors.grey),
-                         ),
-                       ],
-                     ),
-                   ),
+                   _buildMetadataRow(Icons.location_on, 'Location', '${response.latitude!.toStringAsFixed(4)}, ${response.longitude!.toStringAsFixed(4)}', color: Colors.red),
+                const SizedBox(height: 8),
+                const Text('Responses:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                const SizedBox(height: 8),
                 ...questions.map((q) {
                   final answer = response.answers[q.id] ?? 'N/A';
                   return Padding(
@@ -211,5 +215,27 @@ class _ResponseCard extends StatelessWidget {
 
   String _formatDate(DateTime date) {
     return '${date.day}/${date.month}/${date.year} at ${date.hour}:${date.minute.toString().padLeft(2, '0')}';
+  }
+
+  Widget _buildMetadataRow(IconData icon, String label, String value, {Color? color}) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        children: [
+          Icon(icon, size: 14, color: color ?? Colors.grey),
+          const SizedBox(width: 6),
+          Text(
+            '$label: ',
+            style: const TextStyle(fontSize: 12, color: Colors.grey, fontWeight: FontWeight.w500),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
